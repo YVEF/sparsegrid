@@ -18,15 +18,15 @@ Move MoveList::pop() noexcept {
 }
 
 Move mkMove(SQ from, SQ to) noexcept {
-    return Move{from, to, 0x00, false};
+    return Move{from, to, 0x00, false, false};
 }
 
 Move mkCastling(SQ from, CastlingType ct) noexcept {
-    return Move{from, 0x00, (uint8_t)ct, false};
+    return Move{from, 0x00, (uint8_t)ct, false, false};
 }
 
 Move mkEnpass(SQ from, SQ to) noexcept {
-    return Move{from, to, 0x00, true};
+    return Move{from, to, 0x00, true, false};
 }
 
 

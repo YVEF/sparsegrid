@@ -64,13 +64,12 @@ public:
 
     /*
      * @brief   Update board data like zobrist key, piece count moves and some misc. counters
-     * @param   reverse Reverse update (undo).
      */
-    void updateKey(PColor color, uint8_t castling, bool isEnpass) noexcept;
+    void updateKey(uint8_t castling, bool isEnpass) noexcept;
 
     uint64_t stateKey() const noexcept;
     BB occupancy() const noexcept;
-    void rebuildKey(PColor sideToMove) noexcept;
+    void rebuildKey() noexcept;
 
 private:
     BB m_bb_col = 0xFFFF000000000000; // color

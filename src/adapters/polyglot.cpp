@@ -16,7 +16,8 @@ static int convertPiece(PKind kind, PColor color) noexcept {
         case PKind::pB: res = 4; break;
         case PKind::pR: res = 6; break;
         case PKind::pQ: res = 8; break;
-        default: res = 10; break; // PKind::pK
+        case PKind::pK: res = 10; break;
+        default: SG_ASSERT(false); break;
     }
     return res + (int)color;
 }
@@ -38,31 +39,7 @@ static uint64_t getPieceKey(PKind kind, PColor color, SQ sq) noexcept {
     return poly_keys[64 * convertPiece(kind, color) + sq];
 }
 
-static uint8_t get_pawn_pos_from(const auto& brd, uint8_t pos1, uint8_t pos2) noexcept {
-    if(!brd.offboard(pos1) && !brd.empty(pos1) && brd.get_piece(pos1).kind() == PKind::pP)
-        return pos1;
-    if(!brd.offboard(pos2) && !brd.empty(pos2) && brd.get_piece(pos2).kind() == PKind::pP)
-        return pos1;
-    return 0;
-}
-
-static bool detect_enpass_from_fen(const auto& state, int coeff_dir) noexcept {
-    decltype(auto) brd = state.get_board();
-    auto fen_enpass = state.FEN_get_enpass();
-    if(!brd.empty(fen_enpass+coeff_dir)) {
-        decltype(auto) pawn = state.get_piece_info(fen_enpass+coeff_dir);
-        uint8_t enpass_pawn_pos = get_pawn_pos_from(brd, pawn.position()-1, pawn.position()+1);
-        if(!enpass_pawn_pos || state.get_piece_info(enpass_pawn_pos).color() == pawn.color())
-            return false;
-
-        return true;
-    }
-
-    return false;
-
-}
-
-static uint64_t bldEnpassantHash(const brd::BoardState& state, const common::Options& opts) {
+static uint64_t bldEnpassantHash(const brd::BoardState& state) {
     uint64_t hash   = 0;
     constexpr int offset = 772;
 
@@ -134,7 +111,7 @@ uint64_t makeKey(const brd::BoardState& state, const common::Options& opts) noex
     return bldPieceHash(state)
            ^ bldCastleHash(state)
            ^ bldTurnHash(state, opts)
-           ^ bldEnpassantHash(state, opts);
+           ^ bldEnpassantHash(state);
 }
 
 } // namespace adapters::polyglot

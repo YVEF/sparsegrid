@@ -409,7 +409,7 @@ BOOST_FIXTURE_TEST_CASE(test_regression_4, BoardStateFixture) {
 BOOST_FIXTURE_TEST_CASE(test_regression_5, BoardStateFixture) {
     brd::Board board{};
     preserveOnlyPositions(board, {W_KING_POS, B_KING_POS, W_QUEEN_POS, B_PAWN_3_POS});
-    board.rebuildKey(PColor::W);
+    board.rebuildKey();
     brd::BoardState state(std::move(board));
     state.registerMove(brd::mkMove(W_QUEEN_POS, SqNum::sqn_d4));
     state.registerMove(brd::mkMove(B_KING_POS, SqNum::sqn_c1));

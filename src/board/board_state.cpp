@@ -107,7 +107,7 @@ void BoardState::registerMove(const Move& move) noexcept {
             }
         }
     }
-    m_board.updateKey(moveColor, move.castling, move.isEnpass);
+    m_board.updateKey(move.castling, move.isEnpass);
 
     undo_recs_ rec{};
     rec.data = UNDO_REC_DATA(move.from, move.to, moveKind, false);
@@ -188,7 +188,7 @@ void BoardState::undo() noexcept {
         }
     }
 
-    m_board.updateKey(moveColor, castle, isEnpass);
+    m_board.updateKey(castle, isEnpass);
     m_rule50Ply = rule50;
     if (castle || moveKind == PKind::pK) {
         if (moveColor == PColor::W) m_wKingMoves--;

@@ -279,9 +279,7 @@ void Board::put(PKind kind, PColor color, SQ sq) noexcept {
 TEMPLATE_DEF_CONST(uint64_t, brd::Board::getPieceSqMask)
 TEMPLATE_DEF_CONST(void, brd::Board::movegen, MoveList&, const BoardState&)
 
-void Board::updateKey(PColor color, uint8_t castling, bool isEnpass) noexcept {
-    // if (color == PColor::B) m_key ^= zobristSrc.blackToMove;
-    // if (color) m_key ^= zobristSrc.blackToMove;
+void Board::updateKey(uint8_t castling, bool isEnpass) noexcept {
     m_key ^= zobristSrc.blackToMove;
     if (castling) {
         SG_ASSERT(castling <= 0x02);
@@ -303,9 +301,9 @@ void Board::clear() noexcept {
     m_bb_rqk = m_bb_pbq = m_bb_nbk = m_bb_col = 0x00;
 }
 
-void Board::rebuildKey(PColor sideToMove) noexcept {
+void Board::rebuildKey() noexcept {
     initKey(m_key, *this);
-    updateKey(invert(sideToMove), 0x00, false);
+    updateKey(0x00, false);
 }
 
 } // namespace brd
