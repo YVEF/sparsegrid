@@ -6,13 +6,15 @@ include_directories(
 
 
 set(TESTS_SRC
-    test_utils.cpp
-    test_board.cpp
-    test_board_state.cpp
-    test_undo.cpp
-    test_hashing.cpp
-    test_mtdsearch.cpp
-    test_fen.cpp
+    	test_utils.cpp
+    	test_board.cpp
+    	test_board_state.cpp
+    	test_undo.cpp
+    	test_hashing.cpp
+    	test_mtdsearch.cpp
+    	test_fen.cpp
+		test_polyglot.cpp
+		test_evals.cpp
 )
 
 
@@ -27,5 +29,4 @@ add_test(NAME test_undo COMMAND ${PROJECT_TEST_NAME} ${BOOST_TEST_STD_ARGS} --ru
 add_test(NAME test_hashing COMMAND ${PROJECT_TEST_NAME} ${BOOST_TEST_STD_ARGS} --run_test=hashing_test_suite)
 add_test(NAME test_fen COMMAND ${PROJECT_TEST_NAME} ${BOOST_TEST_STD_ARGS} --run_test=fen_test_suite)
 add_test(NAME test_search COMMAND ${PROJECT_TEST_NAME} ${BOOST_TEST_STD_ARGS} --run_test=mtdsearch_test_suite)
-# add_test(NAME test_polyglot COMMAND ${PROJECT_TEST_NAME} ${BOOST_TEST_STD_ARGS} --run_test=polyglot_test_suite)
-# add_test(NAME test_opening_book COMMAND ${PROJECT_TEST_NAME} ${BOOST_TEST_STD_ARGS} --run_test=opening_book_test_suite)
+add_test(NAME test_polyglot COMMAND ${PROJECT_TEST_NAME} ${BOOST_TEST_STD_ARGS} --run_test=polyglot_test_suite)

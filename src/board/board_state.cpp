@@ -1,7 +1,9 @@
+#include <optional>
 #include "board_state.h"
 #include "../dbg/sg_assert.h"
 #include "../core/scores.h"
 #include "../dbg/debugger.h"
+#include "../common/options.h"
 
 #define CASTL_NEW_KING_POS(kingPos, castlType) ((castlType) == brd::CastlingType::C_SHORT ? (kingPos)+2 : (kingPos)-2)
 #define CASTL_NEW_ROOK_POS(kingPos, castlType) (castlType == brd::CastlingType::C_SHORT ? (kingPos)+1 : (kingPos)-1)
@@ -30,15 +32,85 @@ struct MG<Color, PKind::pR> {
         MG<PColor::B, PKind::pP>{}.run(board, mvList, state);
     }
 };
+} // details
+
+//static PColor getNextPlayerColor(const brd::BoardState& state) noexcept;
+
+template<std::size_t I>
+static void fillBits(auto& input, const auto& rawBrd) noexcept {
+    auto brdPart = std::get<I>(rawBrd);
+    constexpr auto start = I*64;
+    for (SQ i=0; i<64; i++) {
+        if ((1ull << i) & brdPart) input[start+i] = 1.0;
+    }
+}
+
+static void rebuildNNLayer(const auto& state,
+                           auto& input,
+                           const auto& rawBrd) noexcept {
+
+    input.fill(0.0);
+    fillBits<0>(input, rawBrd);
+    fillBits<1>(input, rawBrd);
+    fillBits<2>(input, rawBrd);
+    fillBits<3>(input, rawBrd);
+    input[256] = 1.0;
+
+//    if (getNextPlayerColor(state))
+//        input[256] = 1.0;
+//    else
+//        input[319] = 1.0;
 }
 
 BoardState::BoardState(brd::Board&& board) noexcept 
-: m_board(std::move(board)) {}
-
-template<PColor Color, PKind Kind> void movegen_recurs(Board& board, MoveList& mvList) {
-    board.movegen<Color, Kind>(mvList);
+: m_board(board) {
+    auto rawBrd = m_board.getRawBoard();
+    rebuildNNLayer(*this, m_nnLayer, rawBrd);
 }
 
+
+BoardState::BoardState(const brd::BoardState& rhs) noexcept
+: m_board(rhs.m_board), m_undoList(rhs.m_undoList), m_rule50Ply(rhs.m_rule50Ply), m_wKingMoves(rhs.m_wKingMoves),
+m_bKingMoves(rhs.m_bKingMoves), m_wKingExists(rhs.m_wKingExists), m_bKingExists(rhs.m_bKingExists),
+m_lwRp(rhs.m_lwRp), m_lbRp(rhs.m_lbRp), m_lwRMoves(rhs.m_lwRMoves), m_rwRMoves(rhs.m_rwRMoves),
+m_lbRMoves(rhs.m_lbRMoves), m_rbRMoves(rhs.m_rbRMoves), m_fenEnpassMove(rhs.m_fenEnpassMove),
+m_fenNextPlayer(rhs.m_fenNextPlayer), m_buildFromFen(rhs.m_buildFromFen), m_fenCastlingMask(rhs.m_fenCastlingMask),
+m_nnLayer(rhs.m_nnLayer)
+{
+    m_nonPawnMaterial[0] = rhs.m_nonPawnMaterial[0];
+    m_nonPawnMaterial[1] = rhs.m_nonPawnMaterial[1];
+}
+
+BoardState::BoardState(brd::BoardState&& rhs) noexcept
+: m_board(rhs.m_board), m_undoList(std::move(rhs.m_undoList)), m_rule50Ply(rhs.m_rule50Ply),
+  m_wKingMoves(rhs.m_wKingMoves), m_bKingMoves(rhs.m_bKingMoves), m_wKingExists(rhs.m_wKingExists),
+  m_bKingExists(rhs.m_bKingExists),
+  m_lwRp(rhs.m_lwRp), m_lbRp(rhs.m_lbRp), m_lwRMoves(rhs.m_lwRMoves), m_rwRMoves(rhs.m_rwRMoves),
+  m_lbRMoves(rhs.m_lbRMoves), m_rbRMoves(rhs.m_rbRMoves), m_fenEnpassMove(rhs.m_fenEnpassMove),
+  m_fenNextPlayer(rhs.m_fenNextPlayer), m_buildFromFen(rhs.m_buildFromFen), m_fenCastlingMask(rhs.m_fenCastlingMask),
+  m_nnLayer(rhs.m_nnLayer)
+{
+    m_nonPawnMaterial[0] = rhs.m_nonPawnMaterial[0];
+    m_nonPawnMaterial[1] = rhs.m_nonPawnMaterial[1];
+}
+
+void BoardState::updateRookMeta_(PColor color, SQ from, SQ to, bool inc) noexcept {
+    int coeff = inc ? 1 : -1;
+    if (color) {
+        if (from == m_lwRp) {
+            m_lwRp = to;
+            m_lwRMoves += coeff;
+        }
+        else m_rwRMoves += coeff;
+    }
+    else {
+        if (from == m_lbRp) {
+            m_lbRp = to;
+            m_lbRMoves += coeff;
+        }
+        else m_rbRMoves += coeff;
+    }
+}
 
 void BoardState::registerMove(const Move& move) noexcept {
     SG_ASSERT(!move.NAM());
@@ -50,9 +122,10 @@ void BoardState::registerMove(const Move& move) noexcept {
     auto moveColor = m_board.getColor(fromMask);
 
     bool isCapture = !m_board.emptyM(toMask) && !move.castling;
+    SQ enpassVictimPos = 0x00;
     if (move.isEnpass) {
-        SQ victimPos = (moveColor == PColor::W ? move.to - 8 : move.to + 8);
-        auto [c, k] = m_board.kill(victimPos);
+        enpassVictimPos = (moveColor == PColor::W ? move.to - 8 : move.to + 8);
+        auto [c, k] = m_board.kill(enpassVictimPos);
         SG_ASSERT(c != moveColor);
         capturedKind = k;
         moveKind = PKind::pP;
@@ -63,11 +136,11 @@ void BoardState::registerMove(const Move& move) noexcept {
     }
 
     bool promo = false;
-    // uint8_t newRPos = 0x00, rPos = 0x00;
+    SQ newRPos = 0x00, rPos = 0x00, newKPos = 0x00;
     if (move.castling) {
-        uint8_t newKPos = CASTL_NEW_KING_POS(move.from, move.castling);
-        auto newRPos = CASTL_NEW_ROOK_POS(move.from, move.castling);
-        auto rPos = CASTL_ORIG_ROOK_POS(move.from, move.castling);
+        newKPos = CASTL_NEW_KING_POS(move.from, move.castling);
+        newRPos = CASTL_NEW_ROOK_POS(move.from, move.castling);
+        rPos = CASTL_ORIG_ROOK_POS(move.from, move.castling);
         m_board.slideTo(move.from, newKPos);
         m_board.slideTo(rPos, newRPos);
         moveKind = PKind::pK;
@@ -88,16 +161,9 @@ void BoardState::registerMove(const Move& move) noexcept {
             }
         }
     }
-    m_board.updateKey(moveColor, move.castling, move.isEnpass);
+    m_board.updateKey(move.castling, move.isEnpass);
 
-    undo_recs_ rec{};
-    rec.data = UNDO_REC_DATA(move.from, move.to, moveKind, false);
-    rec.meta = UNDO_REC_RULE_50(m_rule50Ply);
-    rec.meta |= UNDO_REC_CAPTURED_KIND(capturedKind);
-    rec.meta |= UNDO_REC_CASTL(move.castling);
-    rec.meta |= UNDO_REC_PROMO(promo);
-    rec.meta |= UNDO_REC_ENPASS(move.isEnpass);
-
+    undoRec_ rec = buildUndoRec_(move, moveKind, capturedKind, promo, moveColor);
     m_undoList.emplace_back(rec);
     if(!isCapture && moveKind != PKind::pP) m_rule50Ply++;
     else m_rule50Ply = 0;
@@ -111,32 +177,173 @@ void BoardState::registerMove(const Move& move) noexcept {
         setKingExistence_(invert(moveColor), false);
     else if (!promo && capturedKind != PKind::None)
         m_nonPawnMaterial[col2int(invert(moveColor))] -= PieceScores[static_cast<unsigned>(capturedKind)];
+
+    // update dedicated rook position vars for castle handling
+    if (moveKind == PKind::pR)
+        updateRookMeta_(moveColor, move.from, move.to, true);
+    else if (move.castling)
+        updateRookMeta_(moveColor, rPos, newRPos, true);
+
+    FenResetState();
+
+    updateNN_(rec, newRPos, rPos, newKPos, enpassVictimPos, false);
 }
 
+
+void switchMoveSideNN(BoardState::nnLayer_t& nn, PColor moveColor, bool undo) {
+    if ((moveColor && !undo) || (!moveColor && undo)) {
+        nn[319] = 1.0;
+        nn[256] = 0.0;
+    }
+    else {
+        nn[319] = 0.0;
+        nn[256] = 1.0;
+    }
+}
+
+void BoardState::updateNN_(brd::BoardState::undoRec_ rec, SQ newRPos, SQ rPos, SQ newKPos, SQ enpassPos, bool undo) noexcept {
+    auto rawBoard = m_board.getRawBoard();
+
+    if (rec.castling) {
+        SQ kPos = rec.from;
+        if (undo) {
+            std::swap(kPos, newKPos);
+            std::swap(rPos, newRPos);
+        }
+
+        m_nnLayer[64 + kPos] = m_nnLayer[192 + kPos] = 0.0;
+        m_nnLayer[64 + newKPos] = m_nnLayer[192 + newKPos] = 1.0;
+
+        m_nnLayer[192 + rPos] = 0.0;
+        m_nnLayer[192 + newRPos] = 1.0;
+
+        if (!rec.moveColor) {
+            m_nnLayer[kPos] = m_nnLayer[rPos] = 0.0;
+            m_nnLayer[newKPos] = m_nnLayer[newRPos] = 1.0;
+        }
+        switchMoveSideNN(m_nnLayer, static_cast<PColor>(rec.moveColor), undo);
+        return;
+    }
+
+    SQ from = rec.from, to = rec.to;
+    if (rec.capturedKind != PKind::None) {
+        double zero = undo ? 1.0 : 0.0;
+
+        auto ck = static_cast<PKind>(rec.capturedKind);
+        switch (ck) {
+            case PKind::pP: {
+                if (rec.isEnpass) m_nnLayer[128 + enpassPos] = zero;
+                else m_nnLayer[128 + to] = zero;
+                break;
+            }
+            case PKind::pK: {
+                m_nnLayer[64 + to] = m_nnLayer[192 + to] = zero;
+                break;
+            }
+            case PKind::pR: {
+                m_nnLayer[192 + to] = zero;
+                break;
+            }
+            case PKind::pQ: {
+                m_nnLayer[128 + to] = m_nnLayer[192 + to] = zero;
+                break;
+            }
+            case PKind::pB: {
+                m_nnLayer[64 + to] = m_nnLayer[128 + to] = zero;
+                break;
+            }
+            case PKind::pN: {
+                m_nnLayer[64 + to] = zero;
+                break;
+            }
+        }
+        if (rec.moveColor) {
+            // black was killed
+            if (rec.isEnpass) {
+                SG_ASSERT(enpassPos);
+                SG_ASSERT((undo && m_nnLayer[enpassPos] == 0.) || (!undo && m_nnLayer[enpassPos] == 1.));
+                int a = 1;
+                m_nnLayer[enpassPos] = zero;
+            }
+            else m_nnLayer[to] = zero;
+        }
+    }
+
+    if (undo) std::swap(from, to);
+
+    switch (static_cast<PKind>(rec.moveKind)) {
+        case PKind::pP: {
+            m_nnLayer[128 + from] = 0.0;
+            m_nnLayer[128 + to] = 1.0;
+            break;
+        }
+        case PKind::pK: {
+            m_nnLayer[64 + from] = m_nnLayer[192 + from] = 0.0;
+            m_nnLayer[64 + to] = m_nnLayer[192 + to] = 1.0;
+            break;
+        }
+        case PKind::pR: {
+            m_nnLayer[192 + from] = 0.0;
+            m_nnLayer[192 + to] = 1.0;
+            break;
+        }
+        case PKind::pQ: {
+            m_nnLayer[128 + from] = m_nnLayer[192 + from] = 0.0;
+            m_nnLayer[128 + to] = m_nnLayer[192 + to] = 1.0;
+            break;
+        }
+        case PKind::pB: {
+            m_nnLayer[64 + from] = m_nnLayer[128 + from] = 0.0;
+            m_nnLayer[64 + to] = m_nnLayer[128 + to] = 1.0;
+            break;
+        }
+        case PKind::pN: {
+            m_nnLayer[64 + from] = 0.0;
+            m_nnLayer[64 + to] = 1.0;
+            break;
+        }
+    }
+
+    if (rec.promo) {
+//        m_nnLayer[128 + rec.to] = 0.0;
+        m_nnLayer[128 + to] = m_nnLayer[192 + to] = undo ? 0.0 : 1.0;
+    }
+
+    if (!rec.moveColor) {
+        m_nnLayer[from] = 0.0;
+        m_nnLayer[to] = 1.0;
+    }
+
+    switchMoveSideNN(m_nnLayer, static_cast<PColor>(rec.moveColor), undo);
+}
+
+
 void BoardState::movegen(MoveList& mvList) noexcept {
+    if (gameover()) return;
     details::MG<PColor::W, PKind::pP>{}.run(m_board, mvList, *this);
 }
 
 
 void BoardState::undo() noexcept {
-    undo_recs_ rec = m_undoList.back();; m_undoList.pop_back();
+    undoRec_ rec = m_undoList.back();; m_undoList.pop_back();
 
-    auto from = UNDO_REC_GET_FROM(rec);
-    auto to = UNDO_REC_GET_TO(rec);
-    auto moveKind = UNDO_REC_GET_MOVE_KIND(rec);
-    auto capturedKind = UNDO_REC_GET_CAPTURED_KIND(rec);
-    auto rule50 = UNDO_REC_GET_RULE_50(rec);
-    auto promo = UNDO_REC_GET_PROMO(rec);
-    auto isEnpass = UNDO_REC_GET_ENPASS(rec);
-    auto castl = UNDO_REC_GET_CASTL(rec);
+    auto from = static_cast<SQ>(rec.from);
+    auto to = static_cast<SQ>(rec.to);
+    auto moveKind = static_cast<PKind>(rec.moveKind);
+    auto capturedKind = static_cast<PKind>(rec.capturedKind);
+    auto rule50 = static_cast<uint8_t>(rec.rule50ply);
+    auto promo = static_cast<bool>(rec.promo);
+    auto isEnpass = static_cast<bool>(rec.isEnpass);
+    auto castle = static_cast<uint8_t>(rec.castling);
 
     BB fromMask = 1ull << from;
     BB toMask = 1ull << to;
     PColor moveColor;
-    if(castl) {
-        auto kPos = CASTL_NEW_KING_POS(from, castl);
-        auto rPos = CASTL_NEW_ROOK_POS(from, castl);
-        auto origRPos = CASTL_ORIG_ROOK_POS(from, castl);
+    SQ rPos = 0x00, origRPos = 0x00, kPos = 0x00, enpassVictimSq = 0x00;
+    if(castle) {
+        kPos = CASTL_NEW_KING_POS(from, castle);
+        rPos = CASTL_NEW_ROOK_POS(from, castle);
+        origRPos = CASTL_ORIG_ROOK_POS(from, castle);
         m_board.slideTo(kPos, from);
         m_board.slideTo(rPos, origRPos);
         moveColor = m_board.getColor(fromMask);
@@ -146,7 +353,7 @@ void BoardState::undo() noexcept {
         m_board.slideTo(to, from);
         if (capturedKind != PKind::None) {
             if(isEnpass) {
-                auto enpassVictimSq = moveColor == PColor::W ? to - 8 : to + 8;
+                enpassVictimSq = moveColor == PColor::W ? to - 8 : to + 8;
                 m_board.put(capturedKind, invert(moveColor), enpassVictimSq);
             }
             else m_board.put(capturedKind, invert(moveColor), to);
@@ -160,9 +367,9 @@ void BoardState::undo() noexcept {
         }
     }
 
-    m_board.updateKey(moveColor, castl, isEnpass);
+    m_board.updateKey(castle, isEnpass);
     m_rule50Ply = rule50;
-    if (castl || moveKind == PKind::pK) {
+    if (castle || moveKind == PKind::pK) {
         if (moveColor == PColor::W) m_wKingMoves--;
         else m_bKingMoves--;
     }
@@ -171,6 +378,15 @@ void BoardState::undo() noexcept {
         setKingExistence_(invert(moveColor), true);
     else if (!promo && capturedKind != PKind::None)
         m_nonPawnMaterial[col2int(invert(moveColor))] += PieceScores[static_cast<unsigned>(capturedKind)];
+
+    if (moveKind == PKind::pR)
+        updateRookMeta_(moveColor, to, from, false);
+    else if (castle)
+        updateRookMeta_(moveColor, rPos, origRPos, false);
+
+    FenSetEnpass(0x00);
+
+    updateNN_(rec, rPos, origRPos, kPos, enpassVictimSq, true);
 }
 
 std::size_t BoardState::ply() const noexcept {
@@ -202,12 +418,140 @@ void BoardState::resetState(unsigned rule50) noexcept {
     m_rule50Ply = rule50;
 }
 
-BoardState::undoList_t BoardState::history() const noexcept {
+const BoardState::undoList_t& BoardState::history() const noexcept {
     return m_undoList;
 }
 
 bool BoardState::draw() const noexcept {
     return m_rule50Ply > 50;
+}
+
+
+unsigned BoardState::PG_possibleCastlMask() const noexcept {
+    unsigned mask = 0;
+    if (kindNotMoved<PColor::W>()) {
+        if (rightRookNotMoved<PColor::W>()) mask |= 0x01;
+        if (leftRookNotMoved<PColor::W>()) mask |= 0x02;
+    }
+
+    if (kindNotMoved<PColor::B>()) {
+        if (rightRookNotMoved<PColor::B>()) mask |= 0x04;
+        if (leftRookNotMoved<PColor::B>()) mask |= 0x08;
+    }
+
+    return mask;
+}
+
+bool BoardState::validateEnpassPosition(SQ enpassSQ, SQ pawnPos) const noexcept {
+    BB pawnMask = 1ull << pawnPos;
+    PColor pawnColor = m_board.getColor(pawnMask);
+
+    if (!m_board.empty(enpassSQ)) return 0x00;
+    BB toLeftMask = 1ull << (pawnPos-1);
+    auto leftKind = m_board.getKind(toLeftMask);
+    if (!(pawnMask & NFile::fA)
+        && (leftKind == None || (leftKind == PKind::pP && pawnColor != m_board.getColor(toLeftMask))))
+        return true;
+
+    BB toRightMask = 1ull << (pawnPos+1);
+    auto rightKind = m_board.getKind(toRightMask);
+    if (!(pawnMask & NFile::fH)
+        && (rightKind == None || (rightKind == PKind::pP && pawnColor != m_board.getColor(toRightMask))))
+        return true;
+
+    return false;
+}
+
+SQ BoardState::PG_enpassPos() const noexcept {
+    if(!ply()) return 0;
+
+    auto&& prevMove = m_undoList.back();
+    auto kind = static_cast<PKind>(prevMove.moveKind);
+    if (kind != PKind::pP) [[likely]] return 0x00;
+    SQ from = static_cast<SQ>(prevMove.from);
+    SQ to = static_cast<SQ>(prevMove.to);
+    if (dist(from, to) != 16) return 0x00;
+
+
+    BB toMask = 1ull << to;
+    PColor moveColor = m_board.getColor(toMask);
+
+    BB mask = moveColor ? m_board.getPieceSqMask<PColor::B, PKind::pP>() : m_board.getPieceSqMask<PColor::W, PKind::pP>();
+    while (mask) {
+        SQ sq = popLsb(mask);
+        auto rr = moveColor ?
+            movegen::getEnpassantAttack<PColor::B>(sq, *this)
+            : movegen::getEnpassantAttack<PColor::W>(sq, *this);
+        if (rr) return rr;
+    }
+    return 0x00;
+}
+
+
+SQ BoardState::FenGetEnpass() const noexcept {
+    return m_fenEnpassMove;
+}
+
+void BoardState::FenSetEnpass(SQ sq) noexcept {
+    m_fenEnpassMove = sq;
+}
+
+std::optional<PColor> BoardState::FenGetNextPlayer() const noexcept {
+    return m_fenNextPlayer;
+}
+
+void BoardState::FenSetNextPlayer(PColor color) noexcept {
+    m_fenNextPlayer = color;
+}
+
+void BoardState::FenResetState() noexcept {
+    m_fenEnpassMove = 0x00;
+    m_fenNextPlayer.reset();
+    m_buildFromFen = false;
+    m_fenCastlingMask = 0x00;
+}
+
+bool BoardState::buildFromFen() const noexcept {
+    return m_buildFromFen;
+}
+
+void BoardState::markBuildFromFen() noexcept {
+    m_buildFromFen = true;
+}
+
+void BoardState::setFenCastlingMask(uint64_t mask) noexcept {
+    m_fenCastlingMask |= mask;
+}
+
+uint64_t BoardState::getFenCastlingMask() const noexcept {
+    return m_fenCastlingMask;
+}
+
+BoardState::undoRec_ BoardState::buildUndoRec_(
+    const brd::Move& move, PKind moveKind,
+    PKind capturedKind, bool promo, PColor moveColor) noexcept {
+
+    undoRec_ rec{};
+    rec.from = move.from;
+    rec.to = move.to;
+    rec.moveKind = moveKind;
+    rec.isNull = move.isNull;
+    rec.rule50ply = m_rule50Ply;
+    rec.capturedKind = capturedKind;
+    rec.castling = move.castling;
+    rec.promo = promo;
+    rec.isEnpass = move.isEnpass;
+    rec.moveColor = moveColor;
+    return rec;
+}
+
+PColor getNextPlayerColor(const brd::BoardState& state) noexcept {
+    if (state.buildFromFen()) {
+        SG_ASSERT(state.FenGetNextPlayer().has_value());
+        return state.FenGetNextPlayer().value();
+    }
+
+    return state.history().size() % 2 == 0 ? PColor::W : PColor::B;
 }
 
 } // namespace brd

@@ -176,5 +176,43 @@ BOOST_FIXTURE_TEST_CASE(test_regression_1, UndoTestFixture) {
 }
 
 
+BOOST_FIXTURE_TEST_CASE(test1, UndoTestFixture) {
+    brd::BoardState state(brd::Board{});
+
+    std::vector<brd::Move> moves = {
+        brd::mkMove(SqNum::sqn_e2, SqNum::sqn_e4),
+        brd::mkMove(SqNum::sqn_d7, SqNum::sqn_d5),
+        brd::mkMove(SqNum::sqn_e4, SqNum::sqn_e5),
+        brd::mkMove(SqNum::sqn_f7, SqNum::sqn_f5),
+        brd::mkEnpass(SqNum::sqn_e5, SqNum::sqn_f6),
+        brd::mkMove(SqNum::sqn_g8, SqNum::sqn_f6),
+        brd::mkMove(SqNum::sqn_f1, SqNum::sqn_d3),
+        brd::mkMove(SqNum::sqn_e7, SqNum::sqn_e5),
+        brd::mkMove(SqNum::sqn_g1, SqNum::sqn_f3),
+        brd::mkMove(SqNum::sqn_f8, SqNum::sqn_c5),
+        brd::mkCastling(SqNum::sqn_e1, brd::CastlingType::C_SHORT),
+        brd::mkCastling(SqNum::sqn_e8, brd::CastlingType::C_SHORT),
+    };
+
+    std::vector<brd::BoardState::nnLayer_t> nnls{};
+
+    for (auto& mv : moves) {
+        nnls.push_back(state.getNNL());
+        state.registerMove(mv);
+    }
+
+    for (std::size_t i=0; i<moves.size(); i++) {
+        state.undo();
+        nnls.push_back(state.getNNL());
+    }
+
+    BOOST_REQUIRE(state.history().empty());
+
+    for (std::size_t i=0, j=nnls.size()-1; i<j; i++, j--) {
+        BOOST_CHECK(nnls[i] == nnls[j]);
+    }
+}
+
+
 
 BOOST_AUTO_TEST_SUITE_END()

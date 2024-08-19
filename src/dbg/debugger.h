@@ -12,6 +12,7 @@ public:
     static void printBB(const brd::Board& board) noexcept;
     static void printBB(const brd::BoardState& board) noexcept;
     static void printBB(BB brd) noexcept;
+    static void printNN(const brd::BoardState& state) noexcept;
 
 
     static void unwrapHistory(const brd::BoardState& board) noexcept;

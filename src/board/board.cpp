@@ -10,8 +10,7 @@
 
 
 namespace brd {
-#define TOTAL_PKIND_NUM 12u
-#define BRD_SIZE 64u
+
 
 // use Zobrist hashing to support the board stamp
 struct BrdZobristSource_ {
@@ -24,13 +23,11 @@ struct BrdZobristSource_ {
 static constexpr BrdZobristSource_ zobristSrc = [] {
     BrdZobristSource_ map{};
     gen::rand rnd{};
-    // auto seq = rnd.gen_sequence_u64<(BRD_SIZE * TOTAL_PKIND_NUM)+1+2+BRD_SIZE, 12345>();
-    auto seq = rnd.gen_sequence_u64<(BRD_SIZE * TOTAL_PKIND_NUM)+1+2+BRD_SIZE, 1293812938>();
+    auto seq = rnd.gen_sequence_u64<(BRD_SIZE * TOTAL_PKIND_NUM)+1+2+BRD_SIZE, 17317>();
     std::size_t idx=0;
     for(auto& i : map.map) for(auto& j : i) j = seq[idx++];
 
-    // map.blackToMove = 0x01;//seq[idx++];
-    map.blackToMove = 1221;//seq[idx++];
+    map.blackToMove = 1221;
     map.castling[0] = seq[idx++];
     map.castling[1] = seq[idx++];
     map.enpassant = seq[idx++];
@@ -60,10 +57,10 @@ brd::Board::Board() noexcept {
     initKey(m_key, *this);
 }
 
-
-brd::Board& Board::operator=(const Board&) noexcept {
-    return *this;
-}
+//
+//brd::Board& Board::operator=(const Board&) noexcept {
+//    return *this;
+//}
 
 bool Board::empty(SQ sq) const noexcept {
     return emptyM(1ull << sq);
@@ -191,53 +188,6 @@ uint64_t Board::key() const noexcept {
     return m_key;
 }
 
-template <PColor Color>
-void genCastling(SQ sq, MoveList& mvList, BB occupied, const BoardState& state) noexcept {
-    constexpr uint64_t whiteShortCastl = 0x90;
-    constexpr uint64_t whiteLongCastl = 0x11;
-    constexpr uint64_t blackShortCastl= 0x9000000000000000;
-    constexpr uint64_t blackLongCastl= 0x1100000000000000;
-
-    constexpr uint64_t whiteShortCastlMask = 0xF0;
-    constexpr uint64_t whiteLongCastlMask = 0x1F;
-    constexpr uint64_t blackShortCastlMask = 0xF000000000000000;
-    constexpr uint64_t blackLongCastlMask = 0x1F00000000000000;
-
-    auto&& board = state.getBoard();
-    SG_ASSERT(board.getKind(1ull << sq) == PKind::pK);
-
-    brd::CastlingType castling = brd::CastlingType::C_NONE;
-    if constexpr (Color == PColor::W) {
-        if (sq == makeSq(NFile::fE, NRank::r1)) {
-            SG_ASSERT(Color == PColor::W);
-
-            auto rooks = board.getPieceSqMask<Color, PKind::pR>();
-            if((rooks & whiteShortCastl) && (whiteShortCastlMask & occupied) == whiteShortCastl)
-                castling = castling | CastlingType::C_SHORT;
-            if((rooks & whiteLongCastl) && (whiteLongCastlMask & occupied) == whiteLongCastl)
-                castling = castling | CastlingType::C_LONG;
-        }
-    }
-    else {
-        if (sq == makeSq(NFile::fE, NRank::r8)) {
-            SG_ASSERT(Color == PColor::B);
-
-            auto rooks = board.getPieceSqMask<Color, PKind::pR>();
-            if((rooks & blackShortCastl) && (blackShortCastlMask & occupied) == blackShortCastl)
-                castling = castling | CastlingType::C_SHORT;
-            if((rooks & blackLongCastl) && (blackLongCastlMask & occupied) == blackLongCastl)
-                castling = castling | CastlingType::C_LONG;
-        }
-    }
-
-    if (!castling || state.kingUnderCheck<Color>())
-        return;
-
-    if (castling & brd::CastlingType::C_SHORT)
-        mvList.push(brd::mkCastling(sq, brd::CastlingType::C_SHORT));
-    if (castling & brd::CastlingType::C_LONG)
-        mvList.push(brd::mkCastling(sq, brd::CastlingType::C_LONG));
-}
 
 
 
@@ -246,7 +196,7 @@ void Board::movegen(MoveList& mvList, const BoardState& state) const noexcept {
     uint64_t enemyMask = m_bb_col;
     if constexpr (!Color) enemyMask = ~enemyMask;
 
-    BB occupied = occupancy();
+    const BB occupied = occupancy();
     auto pcMask = getPieceSqMask<Color, Kind>();
 
     while(pcMask) {
@@ -275,8 +225,8 @@ void Board::movegen(MoveList& mvList, const BoardState& state) const noexcept {
         }
 
         if constexpr (Kind == PKind::pK) {
-            if (state.castlPossible<Color>())
-                genCastling<Color>(from, mvList, occupied, state);
+            if (state.kindNotMoved<Color>())
+                movegen::genCastling<Color>(from, mvList, state);
         }
     }
 }
@@ -327,9 +277,7 @@ void Board::put(PKind kind, PColor color, SQ sq) noexcept {
 TEMPLATE_DEF_CONST(uint64_t, brd::Board::getPieceSqMask)
 TEMPLATE_DEF_CONST(void, brd::Board::movegen, MoveList&, const BoardState&)
 
-void Board::updateKey(PColor color, uint8_t castling, bool isEnpass) noexcept {
-    // if (color == PColor::B) m_key ^= zobristSrc.blackToMove;
-    // if (color) m_key ^= zobristSrc.blackToMove;
+void Board::updateKey(uint8_t castling, bool isEnpass) noexcept {
     m_key ^= zobristSrc.blackToMove;
     if (castling) {
         SG_ASSERT(castling <= 0x02);
@@ -351,9 +299,14 @@ void Board::clear() noexcept {
     m_bb_rqk = m_bb_pbq = m_bb_nbk = m_bb_col = 0x00;
 }
 
-void Board::rebuildKey(PColor sideToMove) noexcept {
+void Board::rebuildKey() noexcept {
     initKey(m_key, *this);
-    updateKey(invert(sideToMove), 0x00, false);
+    updateKey(0x00, false);
+}
+
+std::tuple<uint64_t, uint64_t, uint64_t, uint64_t> Board::getRawBoard() const noexcept {
+    // 0, 64, 128, 192
+    return std::make_tuple(m_bb_col, m_bb_nbk, m_bb_pbq, m_bb_rqk);
 }
 
 } // namespace brd

@@ -4,15 +4,13 @@
 #include "../core/defs.h"
 #define DEFAULT_CORES_NUMBER 1u
 #define DEFAULT_MAX_DEPTH_PLY 25u
-#define DEFAULT_AVAIL_MEM_KB 2048
+#define DEFAULT_TT_MEM_KB (4*1024)
 
 namespace common {
 struct Options {
     unsigned Cores = DEFAULT_CORES_NUMBER;
     unsigned MaxDepthPly = DEFAULT_MAX_DEPTH_PLY;
-    unsigned AvailableMem = DEFAULT_AVAIL_MEM_KB;
-    unsigned AvailMemTT = AvailableMem/2;
-    unsigned AvailMemMTD = AvailableMem/2;
+    unsigned AvailMemTT = DEFAULT_TT_MEM_KB;
     PColor EngineSide = PColor::B;
 };
 } // namespace common

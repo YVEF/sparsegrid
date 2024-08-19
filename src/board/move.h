@@ -18,7 +18,6 @@ struct MoveMask {
     // uint8_t promo: 1;
 };
 
-// todo: experiment: pack into 2 bytes
 struct Move {
     // 0|0|00 |0000 00|00 0000
     //  | |   |       --------- from (6)
@@ -42,8 +41,7 @@ struct Move {
 
     friend std::ostream& operator<<(std::ostream& str, const Move& move) noexcept;
 };
-// static_assert(sizeof(brd::Move) == 4, "packed into 32 bits");
-static_assert(sizeof(brd::Move) == 2, "packed into 32 bits");
+static_assert(sizeof(brd::Move) == 2, "brd::Move packed into 16 bits");
 
 #define NONE_MOVE brd::Move::None()
 
@@ -86,7 +84,7 @@ struct MoveList {
     void push(Move move) noexcept;
     Move pop() noexcept;
     std::size_t size() const noexcept;
-    const Move& operator[](int i) noexcept;
+    const Move& operator[](std::size_t i) noexcept;
 
 private:
     std::size_t m_ptr = 0;
@@ -97,9 +95,12 @@ inline std::size_t MoveList::size() const noexcept {
     return m_ptr;
 }
 
-inline const Move& MoveList::operator[](int i) noexcept {
+inline const Move& MoveList::operator[](std::size_t i) noexcept {
     return m_data[i];
 }
+
+class Board;
+brd::Move recognizeMove(SQ from, SQ to, const brd::Board&) noexcept;
 
 } // namespace brd
 

@@ -8,6 +8,7 @@
 #include <boost/test/unit_test.hpp>
 #include <boost/test/unit_test_suite.hpp>
 
+#include <dbg/debugger.h>
 
 struct BoardStateFixture {
 public:
@@ -409,7 +410,7 @@ BOOST_FIXTURE_TEST_CASE(test_regression_4, BoardStateFixture) {
 BOOST_FIXTURE_TEST_CASE(test_regression_5, BoardStateFixture) {
     brd::Board board{};
     preserveOnlyPositions(board, {W_KING_POS, B_KING_POS, W_QUEEN_POS, B_PAWN_3_POS});
-    board.rebuildKey(PColor::W);
+    board.rebuildKey();
     brd::BoardState state(std::move(board));
     state.registerMove(brd::mkMove(W_QUEEN_POS, SqNum::sqn_d4));
     state.registerMove(brd::mkMove(B_KING_POS, SqNum::sqn_c1));
@@ -419,13 +420,9 @@ BOOST_FIXTURE_TEST_CASE(test_regression_5, BoardStateFixture) {
     auto keyInit = state.getBoard().key();
     std::cout << keyInit << std::endl;
 
-    std::cout << '-' << state.getBoard().key() << std::endl;
     state.registerMove(brd::mkMove(SqNum::sqn_d4, SqNum::sqn_a1)); // w
-    std::cout << "--" << state.getBoard().key() << std::endl;
     state.registerMove(brd::mkMove(SqNum::sqn_c1, SqNum::sqn_d2)); // b
-    std::cout << "---" << state.getBoard().key() << std::endl;
     state.registerMove(brd::mkMove(SqNum::sqn_a1, SqNum::sqn_e1)); // w
-    std::cout << "----" << state.getBoard().key() << std::endl;
 
     // black to move
     auto key2 = state.getBoard().key();
@@ -439,16 +436,10 @@ BOOST_FIXTURE_TEST_CASE(test_regression_5, BoardStateFixture) {
     auto keyInit3 = state.getBoard().key();
     std::cout << keyInit3 << std::endl;
 
-    std::cout << "\n---------\n\n";
-    std::cout << "-" << state.getBoard().key() << std::endl;
     state.registerMove(brd::mkMove(SqNum::sqn_d4, SqNum::sqn_b4)); // w
-    std::cout << "--" << state.getBoard().key() << std::endl;
     state.registerMove(brd::mkMove(SqNum::sqn_c1, SqNum::sqn_d1)); // b
-    std::cout << "---" << state.getBoard().key() << std::endl;
     state.registerMove(brd::mkMove(SqNum::sqn_b4, SqNum::sqn_e1)); // w
-    std::cout << "----" << state.getBoard().key() << std::endl;
     state.registerMove(brd::mkMove(SqNum::sqn_d1, SqNum::sqn_d2)); // b
-    std::cout << "-----" << state.getBoard().key() << std::endl;
 
     // white to move
     auto key3 = state.getBoard().key();
@@ -467,6 +458,76 @@ BOOST_FIXTURE_TEST_CASE(test_regression_5, BoardStateFixture) {
     BOOST_CHECK_NE(keyInit, key2);
     BOOST_CHECK_NE(keyInit, key3);
 }
+
+
+template<std::size_t I>
+static void fillBits(double* input, const auto& rawBrd) {
+    auto brdPart = std::get<I>(rawBrd);
+    constexpr auto start = I*64;
+    for (SQ i=0; i<64; i++) {
+        if ((1ull << i) & brdPart) input[start+i] = 1.0;
+    }
+}
+
+void rebuildNN(const brd::BoardState& state, double* data) noexcept {
+    std::fill_n(data, brd::nnLayerSize(), 0.0);
+
+    auto rawBrd = state.getBoard().getRawBoard();
+    fillBits<0>(data, rawBrd);
+    fillBits<1>(data, rawBrd);
+    fillBits<2>(data, rawBrd);
+    fillBits<3>(data, rawBrd);
+    if (getNextPlayerColor(state))
+        data[256] = 1.0;
+    else
+        data[319] = 1.0;
+}
+
+static int checkDouble(const double* a, const double* b, std::size_t size) {
+    for (std::size_t i=0; i<size; i++) {
+        if (a[i] > b[i]) return 1;
+        if (a[i] < b[i]) return -1;
+    }
+    return 0;
+}
+
+BOOST_FIXTURE_TEST_CASE(test_run_game_check_consistent_nn_layer, BoardStateFixture) {
+    brd::BoardState state(brd::Board{});
+    std::vector<brd::Move> game = {
+        brd::mkMove(SqNum::sqn_e2, SqNum::sqn_e4),
+        brd::mkMove(SqNum::sqn_e7, SqNum::sqn_e5),
+        brd::mkMove(SqNum::sqn_g1, SqNum::sqn_f3),
+        brd::mkMove(SqNum::sqn_f7, SqNum::sqn_f6),
+        brd::mkMove(SqNum::sqn_f1, SqNum::sqn_c4),
+        brd::mkMove(SqNum::sqn_g8, SqNum::sqn_e7),
+
+    };
+
+    double* refData = new double[brd::nnLayerSize()];
+    rebuildNN(state, refData);
+    auto r = checkDouble(refData, state.getNNL().data(), brd::nnLayerSize());
+    BOOST_REQUIRE(!r);
+
+    for (auto&& mv : game) {
+        state.registerMove(mv);
+        rebuildNN(state, refData);
+        r = checkDouble(refData, state.getNNL().data(), brd::nnLayerSize());
+        BOOST_CHECK(!r);
+    }
+
+    for (std::size_t i=0; i<game.size(); i++) {
+        state.undo();
+        rebuildNN(state, refData);
+        r = checkDouble(refData, state.getNNL().data(), brd::nnLayerSize());
+        BOOST_CHECK(!r);
+    }
+
+    delete[] refData;
+}
+
+
+
+
 
 BOOST_AUTO_TEST_SUITE_END()
 

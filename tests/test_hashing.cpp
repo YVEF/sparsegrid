@@ -18,7 +18,7 @@ public:
     }
 
     common::Options opts;
-    common::Stat stat;
+    common::Stat    stat;
 };
 
 
@@ -74,11 +74,11 @@ BOOST_FIXTURE_TEST_CASE(test_first_level_unique_keys_equal_amount_of_moves_plus_
     brd::BoardState state(brd::Board{});
     std::unordered_set<brd::BrdKey_t> keys{};
 
-    runRecursive(state, true, 1, [&](brd::BoardState& state) {
+    runRecursive(state, true, 3, [&](brd::BoardState& state) {
         keys.emplace(state.getBoard().key());
     });
 
-    BOOST_REQUIRE_EQUAL(keys.size(), 20+1);
+    BOOST_REQUIRE_EQUAL(keys.size(), 5783);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -3,7 +3,7 @@
 #include <cstdint>
 #include "../core/defs.h"
 
-namespace brd { class Board; class BoardState; }
+namespace brd { class Board; class BoardState; struct MoveList; }
 
 namespace movegen {
 void init();
@@ -25,6 +25,7 @@ BB getPieceOccupancy(SQ sq, BB occupied) noexcept;
 
 /**
  * Returns the "to" square if enpassant possible
+ * @param sq    Previos move pawn square
  */
 template<PColor Color>
 uint8_t getEnpassantAttack(SQ sq, const brd::BoardState& state) noexcept;
@@ -48,6 +49,9 @@ BB getPieceOccupancy(SQ sq, BB occupied) noexcept {
         return movegen::getKnightOccupancy(sq);
     }
 }
+
+template <PColor Color>
+void genCastling(SQ sq, brd::MoveList& mvList, const brd::BoardState& state) noexcept;
 
 } // namespace movegen
 

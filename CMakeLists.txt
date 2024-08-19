@@ -1,16 +1,16 @@
-cmake_minimum_required(VERSION 3.23)
+cmake_minimum_required(VERSION 3.29.6)
 if (NOT EXISTS $ENV{VCPKG_ROOT})
 	message(FATAL_ERROR "$VCPKG_ROOT is not defined")
 endif()
-
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 20)
 set(Boost_NO_WARN_NEW_VERSIONS 1)
 set(CMAKE_TOOLCHAIN_FILE $ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+set(VCPKG_LOAD_VCVARS_ENV ON)
+project(sparsegrid VERSION 0.0.2)
 
-
-project(sparsegrid VERSION 0.0.1)
 set(PROJECT_LIB_NAME ${PROJECT_NAME}core)
 set(PROJECT_TEST_NAME ${PROJECT_NAME}test)
 set(PROJECT_BENCH_NAME ${PROJECT_NAME}perft)
@@ -21,7 +21,8 @@ add_definitions(-DTEST_ENV)
 
 
 add_compile_options(-Wall -Wpedantic -Wextra -mavx2)
-if(${CMAKE_BUILD_TYPE} STREQUAL "Debug")
+if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
+    message(STATUS "Debug build type")
     add_compile_options(-g -O0)
 #     message("Debug build type")
 #     add_compile_options(-g -O0
@@ -36,7 +37,7 @@ if(${CMAKE_BUILD_TYPE} STREQUAL "Debug")
 #         )
 #     add_link_options(-fuse-ld=lld -fsanitize=address)
 else()
-    message("Release build type")
+    message(STATUS "Release build type")
     add_compile_options(-O3
         -finline-functions
         -funsafe-math-optimizations
@@ -48,7 +49,9 @@ else()
 #         -funsafe-math-optimizations
 #         )
 #     add_link_options(-flto=full)
-#     add_definitions(-DNDEBUG)
+
+    add_definitions(-DNDEBUG)
+    add_compile_options(-flto)
 endif()
 
 

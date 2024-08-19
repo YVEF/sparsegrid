@@ -12,7 +12,7 @@
 #include "search/mtdsearch.h"
 
 namespace search { template<typename> class MtdSearch; }
-namespace common { class Stat; }
+namespace common { struct Stat; }
 namespace eval { class Evaluator; }
 namespace uci { class Fen; }
 
@@ -50,7 +50,6 @@ private:
     const uci::Fen&                 m_fen;
 
     GoResult go_() noexcept;
-
 };
 
 template <typename TExecutor> 
@@ -67,6 +66,10 @@ void Engine<TExecutor>::go(uint64_t wtime, uint64_t btime, TGoCallback&& callbac
     thr.detach();
 }
 } // namespace sg
+
+extern "C" {
+void printEngineHello(int i) noexcept;
+}
 
 
 

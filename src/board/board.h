@@ -6,6 +6,9 @@
 
 
 namespace brd {
+#define TOTAL_PKIND_NUM 12u
+#define BRD_SIZE 64u
+
 struct MoveList;
 class BoardState;
 
@@ -16,7 +19,7 @@ public:
     ~Board() noexcept = default;
     Board(const Board&) noexcept = default;
     Board(Board&&) noexcept = default;
-    Board& operator=(const Board&) noexcept;
+    Board& operator=(const Board&) noexcept = delete;
     Board& operator=(Board&&) = delete;
 
     template<PColor Color, PKind Kind>
@@ -61,13 +64,14 @@ public:
 
     /*
      * @brief   Update board data like zobrist key, piece count moves and some misc. counters
-     * @param   reverse Reverse update (undo).
      */
-    void updateKey(PColor color, uint8_t castling, bool isEnpass) noexcept;
+    void updateKey(uint8_t castling, bool isEnpass) noexcept;
 
     uint64_t stateKey() const noexcept;
     BB occupancy() const noexcept;
-    void rebuildKey(PColor sideToMove) noexcept;
+    void rebuildKey() noexcept;
+
+    [[nodiscard]] std::tuple<uint64_t, uint64_t, uint64_t, uint64_t> getRawBoard() const noexcept;
 
 private:
     BB m_bb_col = 0xFFFF000000000000; // color

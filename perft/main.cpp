@@ -7,8 +7,6 @@
 static void movegen_job(unsigned level) {
     for(unsigned i=1; i<=level; i++) {
         perftGen(i);
-        // common::movegen_stat stat = movegen(i);
-        // std::cout << stat;
         std::cout.flush();
     }
 }

@@ -1,5 +1,5 @@
 #include "common/stat.h"
-#include "core/caller_thread_executor.h"
+#include "core/CallerThreadExecutor.h"
 #include "eval/evaluator.h"
 #include <iostream>
 constexpr int version = 2;
@@ -11,7 +11,7 @@ int main(int argc, char** argv) {
 
     common::Options opts{};
     common::Stat stat;
-    eval::Evaluator evalu{opts};
+    eval::MaterialEvaluator evalu{opts};
     uci::Fen fen;
     brd::Board board;
     sg::Engine<exec::CallerThreadExecutor> engine{opts, stat, evalu, fen, std::move(board)};
