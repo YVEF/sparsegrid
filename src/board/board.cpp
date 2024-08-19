@@ -10,8 +10,7 @@
 
 
 namespace brd {
-#define TOTAL_PKIND_NUM 12u
-#define BRD_SIZE 64u
+
 
 // use Zobrist hashing to support the board stamp
 struct BrdZobristSource_ {
@@ -191,53 +190,6 @@ uint64_t Board::key() const noexcept {
     return m_key;
 }
 
-template <PColor Color>
-void genCastling(SQ sq, MoveList& mvList, BB occupied, const BoardState& state) noexcept {
-    constexpr uint64_t whiteShortCastl = 0x90;
-    constexpr uint64_t whiteLongCastl = 0x11;
-    constexpr uint64_t blackShortCastl= 0x9000000000000000;
-    constexpr uint64_t blackLongCastl= 0x1100000000000000;
-
-    constexpr uint64_t whiteShortCastlMask = 0xF0;
-    constexpr uint64_t whiteLongCastlMask = 0x1F;
-    constexpr uint64_t blackShortCastlMask = 0xF000000000000000;
-    constexpr uint64_t blackLongCastlMask = 0x1F00000000000000;
-
-    auto&& board = state.getBoard();
-    SG_ASSERT(board.getKind(1ull << sq) == PKind::pK);
-
-    brd::CastlingType castling = brd::CastlingType::C_NONE;
-    if constexpr (Color == PColor::W) {
-        if (sq == makeSq(NFile::fE, NRank::r1)) {
-            SG_ASSERT(Color == PColor::W);
-
-            auto rooks = board.getPieceSqMask<Color, PKind::pR>();
-            if((rooks & whiteShortCastl) && (whiteShortCastlMask & occupied) == whiteShortCastl)
-                castling = castling | CastlingType::C_SHORT;
-            if((rooks & whiteLongCastl) && (whiteLongCastlMask & occupied) == whiteLongCastl)
-                castling = castling | CastlingType::C_LONG;
-        }
-    }
-    else {
-        if (sq == makeSq(NFile::fE, NRank::r8)) {
-            SG_ASSERT(Color == PColor::B);
-
-            auto rooks = board.getPieceSqMask<Color, PKind::pR>();
-            if((rooks & blackShortCastl) && (blackShortCastlMask & occupied) == blackShortCastl)
-                castling = castling | CastlingType::C_SHORT;
-            if((rooks & blackLongCastl) && (blackLongCastlMask & occupied) == blackLongCastl)
-                castling = castling | CastlingType::C_LONG;
-        }
-    }
-
-    if (!castling || state.kingUnderCheck<Color>())
-        return;
-
-    if (castling & brd::CastlingType::C_SHORT)
-        mvList.push(brd::mkCastling(sq, brd::CastlingType::C_SHORT));
-    if (castling & brd::CastlingType::C_LONG)
-        mvList.push(brd::mkCastling(sq, brd::CastlingType::C_LONG));
-}
 
 
 
@@ -246,7 +198,7 @@ void Board::movegen(MoveList& mvList, const BoardState& state) const noexcept {
     uint64_t enemyMask = m_bb_col;
     if constexpr (!Color) enemyMask = ~enemyMask;
 
-    BB occupied = occupancy();
+    const BB occupied = occupancy();
     auto pcMask = getPieceSqMask<Color, Kind>();
 
     while(pcMask) {
@@ -275,8 +227,8 @@ void Board::movegen(MoveList& mvList, const BoardState& state) const noexcept {
         }
 
         if constexpr (Kind == PKind::pK) {
-            if (state.castlPossible<Color>())
-                genCastling<Color>(from, mvList, occupied, state);
+            if (state.kindNotMoved<Color>())
+                movegen::genCastling<Color>(from, mvList, state);
         }
     }
 }

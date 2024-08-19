@@ -6,6 +6,9 @@
 
 
 namespace brd {
+#define TOTAL_PKIND_NUM 12u
+#define BRD_SIZE 64u
+
 struct MoveList;
 class BoardState;
 

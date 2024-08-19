@@ -1,3 +1,4 @@
+#include <optional>
 #include "board_state.h"
 #include "../dbg/sg_assert.h"
 #include "../core/scores.h"
@@ -40,6 +41,24 @@ template<PColor Color, PKind Kind> void movegen_recurs(Board& board, MoveList& m
 }
 
 
+void BoardState::updateRookMeta_(PColor color, SQ from, SQ to, bool inc) noexcept {
+    int coeff = inc ? 1 : -1;
+    if (color) {
+        if (from == m_lwRp) {
+            m_lwRp = to;
+            m_lwRMoves += coeff;
+        }
+        else m_rwRMoves += coeff;
+    }
+    else {
+        if (from == m_lbRp) {
+            m_lbRp = to;
+            m_lbRMoves += coeff;
+        }
+        else m_rbRMoves += coeff;
+    }
+}
+
 void BoardState::registerMove(const Move& move) noexcept {
     SG_ASSERT(!move.NAM());
 
@@ -63,11 +82,11 @@ void BoardState::registerMove(const Move& move) noexcept {
     }
 
     bool promo = false;
-    // uint8_t newRPos = 0x00, rPos = 0x00;
+     uint8_t newRPos = 0x00, rPos = 0x00;
     if (move.castling) {
         uint8_t newKPos = CASTL_NEW_KING_POS(move.from, move.castling);
-        auto newRPos = CASTL_NEW_ROOK_POS(move.from, move.castling);
-        auto rPos = CASTL_ORIG_ROOK_POS(move.from, move.castling);
+        newRPos = CASTL_NEW_ROOK_POS(move.from, move.castling);
+        rPos = CASTL_ORIG_ROOK_POS(move.from, move.castling);
         m_board.slideTo(move.from, newKPos);
         m_board.slideTo(rPos, newRPos);
         moveKind = PKind::pK;
@@ -111,6 +130,14 @@ void BoardState::registerMove(const Move& move) noexcept {
         setKingExistence_(invert(moveColor), false);
     else if (!promo && capturedKind != PKind::None)
         m_nonPawnMaterial[col2int(invert(moveColor))] -= PieceScores[static_cast<unsigned>(capturedKind)];
+
+    // update dedicated rook position vars for castle handling
+    if (moveKind == PKind::pR)
+        updateRookMeta_(moveColor, move.from, move.to, true);
+    else if (move.castling)
+        updateRookMeta_(moveColor, rPos, newRPos, true);
+
+    FenResetState();
 }
 
 void BoardState::movegen(MoveList& mvList) noexcept {
@@ -128,15 +155,16 @@ void BoardState::undo() noexcept {
     auto rule50 = UNDO_REC_GET_RULE_50(rec);
     auto promo = UNDO_REC_GET_PROMO(rec);
     auto isEnpass = UNDO_REC_GET_ENPASS(rec);
-    auto castl = UNDO_REC_GET_CASTL(rec);
+    auto castle = UNDO_REC_GET_CASTL(rec);
 
     BB fromMask = 1ull << from;
     BB toMask = 1ull << to;
     PColor moveColor;
-    if(castl) {
-        auto kPos = CASTL_NEW_KING_POS(from, castl);
-        auto rPos = CASTL_NEW_ROOK_POS(from, castl);
-        auto origRPos = CASTL_ORIG_ROOK_POS(from, castl);
+    SQ rPos = 0x00, origRPos = 0x00;
+    if(castle) {
+        auto kPos = CASTL_NEW_KING_POS(from, castle);
+        rPos = CASTL_NEW_ROOK_POS(from, castle);
+        origRPos = CASTL_ORIG_ROOK_POS(from, castle);
         m_board.slideTo(kPos, from);
         m_board.slideTo(rPos, origRPos);
         moveColor = m_board.getColor(fromMask);
@@ -160,9 +188,9 @@ void BoardState::undo() noexcept {
         }
     }
 
-    m_board.updateKey(moveColor, castl, isEnpass);
+    m_board.updateKey(moveColor, castle, isEnpass);
     m_rule50Ply = rule50;
-    if (castl || moveKind == PKind::pK) {
+    if (castle || moveKind == PKind::pK) {
         if (moveColor == PColor::W) m_wKingMoves--;
         else m_bKingMoves--;
     }
@@ -171,6 +199,13 @@ void BoardState::undo() noexcept {
         setKingExistence_(invert(moveColor), true);
     else if (!promo && capturedKind != PKind::None)
         m_nonPawnMaterial[col2int(invert(moveColor))] += PieceScores[static_cast<unsigned>(capturedKind)];
+
+    if (moveKind == PKind::pR)
+        updateRookMeta_(moveColor, to, from, false);
+    else if (castle)
+        updateRookMeta_(moveColor, rPos, origRPos, false);
+
+    FenSetEnpass(0x00);
 }
 
 std::size_t BoardState::ply() const noexcept {
@@ -208,6 +243,117 @@ BoardState::undoList_t BoardState::history() const noexcept {
 
 bool BoardState::draw() const noexcept {
     return m_rule50Ply > 50;
+}
+
+
+
+unsigned BoardState::PG_possibleCastlMask() const noexcept {
+    unsigned mask = 0;
+    if (kindNotMoved<PColor::W>()) {
+        if (rightRookNotMoved<PColor::W>()) mask |= 0x01;
+        if (leftRookNotMoved<PColor::W>()) mask |= 0x02;
+    }
+
+    if (kindNotMoved<PColor::B>()) {
+        if (rightRookNotMoved<PColor::B>()) mask |= 0x04;
+        if (leftRookNotMoved<PColor::B>()) mask |= 0x08;
+    }
+
+    return mask;
+}
+
+bool BoardState::validateEnpassPosition(SQ enpassSQ, SQ pawnPos) const noexcept {
+    BB pawnMask = 1ull << pawnPos;
+    PColor pawnColor = m_board.getColor(pawnMask);
+
+    if (!m_board.empty(enpassSQ)) return 0x00;
+    BB toLeftMask = 1ull << (pawnPos-1);
+    auto leftKind = m_board.getKind(toLeftMask);
+    if (!(pawnMask & NFile::fA)
+        && (leftKind == None || (leftKind == PKind::pP && pawnColor != m_board.getColor(toLeftMask))))
+        return true;
+
+    BB toRightMask = 1ull << (pawnPos+1);
+    auto rightKind = m_board.getKind(toRightMask);
+    if (!(pawnMask & NFile::fH)
+        && (rightKind == None || (rightKind == PKind::pP && pawnColor != m_board.getColor(toRightMask))))
+        return true;
+
+    return false;
+}
+
+SQ BoardState::PG_enpassPos() const noexcept {
+    if(!ply()) return 0;
+
+    auto&& prevMove = m_undoList.back();
+    auto kind = UNDO_REC_GET_MOVE_KIND(prevMove);
+    if (kind != PKind::pP) [[likely]] return 0x00;
+    SQ from = UNDO_REC_GET_FROM(prevMove);
+    SQ to = UNDO_REC_GET_TO(prevMove);
+    if (dist(from, to) != 16) return 0x00;
+
+
+    BB toMask = 1ull << to;
+    PColor moveColor = m_board.getColor(toMask);
+
+    BB mask = moveColor ? m_board.getPieceSqMask<PColor::B, PKind::pP>() : m_board.getPieceSqMask<PColor::W, PKind::pP>();
+    while (mask) {
+        SQ sq = popLsb(mask);
+        auto rr = moveColor ?
+            movegen::getEnpassantAttack<PColor::B>(sq, *this)
+            : movegen::getEnpassantAttack<PColor::W>(sq, *this);
+        if (rr) return rr;
+    }
+
+
+//    if (dist(from, to) == 16) {
+//
+//        SQ enpassSQ = moveColor == PColor::W ? to - 8 : to + 8;
+//        if (validateEnpassPosition(enpassSQ, to))
+//            return enpassSQ;
+//    }
+
+    return 0x00;
+}
+
+
+SQ BoardState::FenGetEnpass() const noexcept {
+    return m_fenEnpassMove;
+}
+
+void BoardState::FenSetEnpass(SQ sq) noexcept {
+    m_fenEnpassMove = sq;
+}
+
+std::optional<PColor> BoardState::FenGetNextPlayer() const noexcept {
+    return m_fenNextPlayer;
+}
+
+void BoardState::FenSetNextPlayer(PColor color) noexcept {
+    m_fenNextPlayer = color;
+}
+
+void BoardState::FenResetState() noexcept {
+    m_fenEnpassMove = 0x00;
+    m_fenNextPlayer.reset();
+    m_buildFromFen = false;
+    m_fenCastlingMask = 0x00;
+}
+
+bool BoardState::buildFromFen() const noexcept {
+    return m_buildFromFen;
+}
+
+void BoardState::markBuildFromFen() noexcept {
+    m_buildFromFen = true;
+}
+
+void BoardState::setFenCastlingMask(uint64_t mask) noexcept {
+    m_fenCastlingMask |= mask;
+}
+
+uint64_t BoardState::getFenCastlingMask() const noexcept {
+    return m_fenCastlingMask;
 }
 
 } // namespace brd

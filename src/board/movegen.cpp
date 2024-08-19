@@ -316,12 +316,7 @@ uint64_t getPawnMoves(SQ sq, const brd::BoardState& state) noexcept {
     return res;
 }
 
-template uint64_t getPawnMoves<PColor::W>(SQ sq, const brd::BoardState&) noexcept;
-template uint64_t getPawnMoves<PColor::B>(SQ sq, const brd::BoardState&) noexcept;
-template uint64_t getPawnAttacks<PColor::W>(SQ sq) noexcept;
-template uint64_t getPawnAttacks<PColor::B>(SQ sq) noexcept;
-template uint8_t getEnpassantAttack<PColor::W>(SQ sq, const brd::BoardState& state) noexcept;
-template uint8_t getEnpassantAttack<PColor::B>(SQ sq, const brd::BoardState& state) noexcept;
+
 
 
 
@@ -331,23 +326,12 @@ template uint8_t getEnpassantAttack<PColor::B>(SQ sq, const brd::BoardState& sta
     return number & (number - 1);
 }
 
-/**
- * set the bit
- * @param number    number to manipulate
- * @param index     index of bit starting at the LST
- * @return          the manipulated number
- */
+
 inline void setBit(uint64_t& number, uint64_t index) {
     number |= (1ULL << index);
 }
 
 
-/**
- * get the bit
- * @param number    number to manipulate
- * @param index     index of bit starting at the LST
- * @return          the manipulated number
- */
 [[nodiscard]] inline bool getBit(uint64_t number, uint64_t index) {
     return ((number >> index) & 1ULL) == 1;
 }
@@ -392,6 +376,64 @@ void init() {
     }
 }
 
+template <PColor Color>
+void genCastling(SQ sq, brd::MoveList& mvList, const brd::BoardState& state) noexcept {
+    constexpr uint64_t whiteShortCastl = 0x90;
+    constexpr uint64_t whiteLongCastl = 0x11;
+    constexpr uint64_t blackShortCastl= 0x9000000000000000;
+    constexpr uint64_t blackLongCastl= 0x1100000000000000;
+
+    constexpr uint64_t whiteShortCastlMask = 0xF0;
+    constexpr uint64_t whiteLongCastlMask = 0x1F;
+    constexpr uint64_t blackShortCastlMask = 0xF000000000000000;
+    constexpr uint64_t blackLongCastlMask = 0x1F00000000000000;
+
+    const BB occupied = state.getBoard().occupancy();
+    auto&& board = state.getBoard();
+    SG_ASSERT(board.getKind(1ull << sq) == PKind::pK);
+
+    brd::CastlingType castling = brd::CastlingType::C_NONE;
+    if constexpr (Color == PColor::W) {
+        if (sq == makeSq(NFile::fE, NRank::r1)) {
+            SG_ASSERT(Color == PColor::W);
+
+            auto rooks = board.getPieceSqMask<Color, PKind::pR>();
+            if((rooks & whiteShortCastl) && (whiteShortCastlMask & occupied) == whiteShortCastl)
+                castling = castling | brd::CastlingType::C_SHORT;
+            if((rooks & whiteLongCastl) && (whiteLongCastlMask & occupied) == whiteLongCastl)
+                castling = castling | brd::CastlingType::C_LONG;
+        }
+    }
+    else {
+        if (sq == makeSq(NFile::fE, NRank::r8)) {
+            SG_ASSERT(Color == PColor::B);
+
+            auto rooks = board.getPieceSqMask<Color, PKind::pR>();
+            if((rooks & blackShortCastl) && (blackShortCastlMask & occupied) == blackShortCastl)
+                castling = castling | brd::CastlingType::C_SHORT;
+            if((rooks & blackLongCastl) && (blackLongCastlMask & occupied) == blackLongCastl)
+                castling = castling | brd::CastlingType::C_LONG;
+        }
+    }
+
+    if (!castling || state.kingUnderCheck<Color>())
+        return;
+
+    if (castling & brd::CastlingType::C_SHORT)
+        mvList.push(brd::mkCastling(sq, brd::CastlingType::C_SHORT));
+    if (castling & brd::CastlingType::C_LONG)
+        mvList.push(brd::mkCastling(sq, brd::CastlingType::C_LONG));
+}
+
+
+template void genCastling<PColor::W>(SQ sq, brd::MoveList& mvList, const brd::BoardState& state) noexcept;
+template void genCastling<PColor::B>(SQ sq, brd::MoveList& mvList, const brd::BoardState& state) noexcept;
+template uint64_t getPawnMoves<PColor::W>(SQ sq, const brd::BoardState&) noexcept;
+template uint64_t getPawnMoves<PColor::B>(SQ sq, const brd::BoardState&) noexcept;
+template uint64_t getPawnAttacks<PColor::W>(SQ sq) noexcept;
+template uint64_t getPawnAttacks<PColor::B>(SQ sq) noexcept;
+template uint8_t getEnpassantAttack<PColor::W>(SQ sq, const brd::BoardState& state) noexcept;
+template uint8_t getEnpassantAttack<PColor::B>(SQ sq, const brd::BoardState& state) noexcept;
 
 } // namespace movegen
 

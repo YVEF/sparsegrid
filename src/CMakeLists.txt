@@ -13,7 +13,7 @@ set(EVAL_SRC
 
 set(SEARCH_SRC 
 #     search/work_context.cpp
-#     search/book.cpp
+     search/book.cpp
 #     search/tracer.cpp
     search/tt.cpp
     search/tm.cpp
@@ -35,7 +35,6 @@ set(CORE_SRC
 
 set(UCI_SRC 
     uci/fen.cpp
-#     uci/fen_builder.cpp
     uci/protocol.cpp
 )
 
@@ -43,10 +42,10 @@ set(ENGINE_SRC
     engine.cpp
 )
 
-# set(ADAPTERS_SRC
-#     adapters/polyglot.cpp
-#     adapters/polyglot_hashkeys.cpp
-# )
+ set(ADAPTERS_SRC
+     adapters/polyglot.cpp
+     adapters/polyglot_hashkeys.cpp
+ )
 
 set(COMMON_SRC
     common/stat.cpp
@@ -70,7 +69,7 @@ add_library(${PROJECT_LIB_NAME} STATIC
     ${CORE_SRC} 
     ${UCI_SRC}
     ${ENGINE_SRC}
-    # ${ADAPTERS_SRC}
+    ${ADAPTERS_SRC}
     ${COMMON_SRC}
 )
 

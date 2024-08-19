@@ -2,6 +2,7 @@
 #define INCLUDE_BOARD_BOARD_STATE_H_
 #include <deque>
 #include <vector>
+#include <optional>
 #include "move.h"
 #include "../core/defs.h"
 #include "board.h"
@@ -29,7 +30,6 @@
 #define UNDO_REC_GET_PROMO(mv) static_cast<bool>(((mv).meta >> 15) & 0x01)
 #define UNDO_REC_GET_ENPASS(mv) static_cast<bool>(((mv).meta >> 9) & 0x01)
 #define UNDO_REC_GET_CASTL(mv) static_cast<uint8_t>(((mv).meta >> 13) & 0x03)
-
 
 
 namespace brd {
@@ -76,8 +76,9 @@ public:
      * @brief   Return mutable board
      */
     Board& getBoardMutable() noexcept;
-    PColor getSideToMove() const noexcept;
-    void setSideToMove(PColor color) noexcept;
+//    PColor getSideToMove() const noexcept;
+//    void setSideToMove(PColor color) noexcept;
+//    PColor nextPlayer() const noexcept;
     const undo_recs_& getLastMove() const noexcept;
     std::size_t ply() const noexcept;
     bool gameover() const noexcept;
@@ -99,23 +100,48 @@ public:
     /*
      * @brief   Indicates that the castling still possible (even if the king under check)
      */
-    template<PColor Color> bool castlPossible() const noexcept;
+    template<PColor Color> bool kindNotMoved() const noexcept;
+    template<PColor Color> bool leftRookNotMoved() const noexcept;
+    template<PColor Color> bool rightRookNotMoved() const noexcept;
     template<PColor Color> bool kingUnderCheck() const noexcept;
 
     undoList_t history() const noexcept;
+
+    // ========= PG, FEN =========
+    unsigned PG_possibleCastlMask() const noexcept;
+    SQ PG_enpassPos() const noexcept;
+    SQ FenGetEnpass() const noexcept;
+    std::optional<PColor> FenGetNextPlayer() const noexcept;
+    void FenSetNextPlayer(PColor) noexcept;
+    void FenSetEnpass(SQ sq) noexcept;
+    void FenResetState() noexcept;
+    bool validateEnpassPosition(SQ enpassSQ, SQ pawnPos) const noexcept;
+    bool buildFromFen() const noexcept;
+    void markBuildFromFen() noexcept;
+    uint64_t getFenCastlingMask() const noexcept;
+    void setFenCastlingMask(uint64_t) noexcept;
+    // ========= PG, FEN =========
 
 private:
     brd::Board m_board;
 
     /** Move records list for undo operations and previous move analyzing */
-    mutable undoList_t  m_undoList;
-    uint8_t             m_rule50Ply = 0;
-    unsigned int        m_wKingMoves = 0, m_bKingMoves = 0;
-    BB                  m_kingAttackers[2] = {0,0};
-    Score               m_nonPawnMaterial[2] = {INIT_MATERIAL, INIT_MATERIAL};
-    unsigned            m_wKingExists = true, m_bKingExists = true;
+    mutable undoList_t      m_undoList;
+    uint8_t                 m_rule50Ply = 0;
+    unsigned int            m_wKingMoves = 0, m_bKingMoves = 0;
+//    BB                      m_kingAttackers[2] = {0,0};
+    Score                   m_nonPawnMaterial[2] = {INIT_MATERIAL, INIT_MATERIAL};
+    unsigned                m_wKingExists = true, m_bKingExists = true;
+    SQ                      m_lwRp = SqNum::sqn_a1, m_lbRp = SqNum::sqn_a8; // left black and white rook positions
+    unsigned int            m_lwRMoves=0, m_rwRMoves=0, m_lbRMoves=0, m_rbRMoves=0; // left/right black/white rook moves count
+    SQ                      m_fenEnpassMove=0;
+    std::optional<PColor>   m_fenNextPlayer;
+    bool                    m_buildFromFen = false;
+    uint64_t                m_fenCastlingMask = 0x00;
+
 
     void setKingExistence_(PColor, bool) noexcept;
+    void updateRookMeta_(PColor color, SQ from, SQ to, bool inc) noexcept;
 };
 
 inline const BoardState::undo_recs_& BoardState::getLastMove() const noexcept {
@@ -145,12 +171,30 @@ inline Board& BoardState::getBoardMutable() noexcept {
     return m_board;
 }
 
-template<PColor Color> bool BoardState::castlPossible() const noexcept {
+template<PColor Color> bool BoardState::kindNotMoved() const noexcept {
     if constexpr (Color == PColor::W) {
         return !m_wKingMoves;
     }
     else {
         return !m_bKingMoves;
+    }
+}
+
+template<PColor Color> bool BoardState::leftRookNotMoved() const noexcept {
+    if constexpr (Color == PColor::W) {
+        return !m_lwRMoves;
+    }
+    else {
+        return !m_lbRMoves;
+    }
+}
+
+template<PColor Color> bool BoardState::rightRookNotMoved() const noexcept {
+    if constexpr (Color == PColor::W) {
+        return !m_rwRMoves;
+    }
+    else {
+        return !m_rbRMoves;
     }
 }
 
@@ -164,6 +208,8 @@ template<PColor Color> bool BoardState::kingUnderCheck() const noexcept {
         return kingMask & m_board.attackMap<PColor::W>();
     }
 }
+
+
 
 
 

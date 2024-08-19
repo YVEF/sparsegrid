@@ -50,7 +50,6 @@ private:
     const uci::Fen&                 m_fen;
 
     GoResult go_() noexcept;
-
 };
 
 template <typename TExecutor> 

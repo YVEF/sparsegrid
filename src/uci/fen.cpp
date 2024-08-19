@@ -11,6 +11,7 @@ std::size_t Fen::apply(std::string_view input, brd::BoardState& state) {
     SQ sq = SqNum::sqn_a8;
     auto& board = state.getBoardMutable();
     board.clear();
+    state.FenResetState();
 
     std::size_t i=0;
     while(input[i] == ' ') i++;
@@ -31,23 +32,19 @@ std::size_t Fen::apply(std::string_view input, brd::BoardState& state) {
         board.put(kind, col, sq++);
     }
 
-
     PColor tomove;
     if(input[++i] == 'w') tomove = PColor::W;
     else tomove = PColor::B;
-    // state.set_next_move_player(tomove);
-
-
+    state.FenSetNextPlayer(tomove);
 
     i+=2;
     // available castling
     while(input[i] != ' ') {
         switch(input[i++]) {
-            // Currently just ignore due to insternal state check. todo: apply
-            case 'K': ; break;
-            case 'Q': ; break;
-            case 'k': ; break;
-            case 'q': ; break;
+            case 'K': ; state.setFenCastlingMask(FEN_SHORT_WHITE_CASTLE_MASK); break;
+            case 'Q': ; state.setFenCastlingMask(FEN_LONG_WHITE_CASTLE_MASK); break;
+            case 'k': ; state.setFenCastlingMask(FEN_SHORT_BLACK_CASTLE_MASK); break;
+            case 'q': ; state.setFenCastlingMask(FEN_LONG_BLACK_CASTLE_MASK); break;
             default: continue;
         }
     }
@@ -55,16 +52,13 @@ std::size_t Fen::apply(std::string_view input, brd::BoardState& state) {
 
     // available enpassant
     if(input[i] == '-') {
-        // Currently ignore it
-        // state.FEN_set_enpass(0);
         i++;
     }
     else {
-        // auto fl = static_cast<NFile>(input[i] - 'a' + NFile::fA);
-        // auto rnk = static_cast<NRank>((input[i+1] - '1') * 10 + NRank::r1);
-        // state.FEN_set_enpass(COORD(fl, rnk));
-
-        i+=2;
+         auto fl = input[i] - 'a';
+         auto rnk = input[i+1] - '1';
+         state.FenSetEnpass(fl + rnk*8);
+         i+=2;
     }
     while(input[i] != ' ') i++;
     i++;
@@ -82,8 +76,8 @@ std::size_t Fen::apply(std::string_view input, brd::BoardState& state) {
     while(i < input.size() && input[i] != ' ') i++;
     while(i < input.size() && input[i] == ' ') i++;
 
+    state.markBuildFromFen();
     return i;
-
 }
 
 std::string Fen::str(const brd::BoardState& state) const noexcept {

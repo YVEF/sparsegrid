@@ -101,6 +101,9 @@ inline const Move& MoveList::operator[](int i) noexcept {
     return m_data[i];
 }
 
+class Board;
+brd::Move recognizeMove(SQ from, SQ to, const brd::Board&) noexcept;
+
 } // namespace brd
 
 

@@ -13,6 +13,7 @@ set(TESTS_SRC
     test_hashing.cpp
     test_mtdsearch.cpp
     test_fen.cpp
+	test_polyglot.cpp
 )
 
 

@@ -4,6 +4,7 @@
 #include "common/options.h"
 #include "uci/fen.h"
 #include "dbg/debugger.h"
+#include "board/move.h"
 
 
 
@@ -67,27 +68,8 @@ void Engine<TExecutor>::printDbg(std::ostream& os) const noexcept {
 
 template <typename TExecutor>
 void Engine<TExecutor>::move(SQ from, SQ to) noexcept {
-    auto&& board = m_state.getBoard();
-    if (!board.empty(to)) {
-        m_state.registerMove(brd::mkMove(from, to));
-        return;
-    }
-
-    auto distance = dist(from, to);
-    auto kind = board.getKind(1ull << from);
-    // ========= castling test
-    if (kind == PKind::pK && distance) {
-        m_state.registerMove(brd::mkCastling(from, (from < to ? brd::CastlingType::C_SHORT : brd::CastlingType::C_LONG)));
-        return;
-    }
-
-    // ========= enpassant test
-    if (kind == PKind::pP && distance % 8) {
-        m_state.registerMove(brd::mkEnpass(from, to));
-        return;
-    }
-
-    m_state.registerMove(brd::mkMove(from, to));
+    auto move = recognizeMove(from, to, m_state.getBoard());
+    m_state.registerMove(move);
 }
 
 

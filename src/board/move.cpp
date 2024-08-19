@@ -1,5 +1,6 @@
 #include "move.h"
 #include "../dbg/sg_assert.h"
+#include "board_state.h"
 
 
 namespace brd {
@@ -28,6 +29,24 @@ Move mkEnpass(SQ from, SQ to) noexcept {
     return Move{from, to, 0x00, true};
 }
 
+
+brd::Move recognizeMove(SQ from, SQ to, const brd::Board& board) noexcept {
+    if (!board.empty(to))
+        return brd::mkMove(from, to);
+
+    auto distance = dist(from, to);
+    auto kind = board.getKind(1ull << from);
+    // ========= castling test
+    if (kind == PKind::pK && distance) {
+        return brd::mkCastling(from, (from < to ? brd::CastlingType::C_SHORT : brd::CastlingType::C_LONG));
+    }
+
+    // ========= enpassant test
+    if (kind == PKind::pP && distance % 8)
+        return brd::mkEnpass(from, to);
+
+    return brd::mkMove(from, to);
+}
 
 
 } // namespace brd

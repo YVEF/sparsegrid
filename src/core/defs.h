@@ -106,6 +106,7 @@ enum SqNum {
     sqn_b4 = 25,
     sqn_b5 = 33,
     sqn_b6 = 41,
+    sqn_b7 = 49,
 
     sqn_c1 = 2,
     sqn_c2 = 10,
@@ -204,5 +205,12 @@ constexpr inline SQ makeSq(NFile file, NRank rank) noexcept {
     BB mask = (BB)file & (BB)rank;
     return (SQ)popLsb(mask);
 }
+
+
+#define FEN_SHORT_WHITE_CASTLE_MASK 0x01
+#define FEN_LONG_WHITE_CASTLE_MASK 0x02
+#define FEN_SHORT_BLACK_CASTLE_MASK 0x04
+#define FEN_LONG_BLACK_CASTLE_MASK 0x08
+
 
 #endif  // INCLUDE_CORE_DEFS_H_
