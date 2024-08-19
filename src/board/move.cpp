@@ -1,0 +1,35 @@
+#include "move.h"
+#include "../dbg/sg_assert.h"
+
+
+namespace brd {
+
+void MoveList::push(Move moves) noexcept {
+    SG_ASSERT(m_ptr < std::size(m_data));
+    m_data[m_ptr++] = moves;
+}
+
+
+Move MoveList::pop() noexcept {
+    SG_ASSERT(m_ptr);
+    Move mv = m_data[--m_ptr];
+    return mv;
+}
+
+Move mkMove(SQ from, SQ to) noexcept {
+    return Move{from, to, 0x00, false};
+}
+
+Move mkCastling(SQ from, CastlingType ct) noexcept {
+    return Move{from, 0x00, (uint8_t)ct, false};
+}
+
+Move mkEnpass(SQ from, SQ to) noexcept {
+    return Move{from, to, 0x00, true};
+}
+
+
+
+} // namespace brd
+
+

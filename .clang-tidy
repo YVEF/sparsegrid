@@ -1,0 +1,25 @@
+---
+Checks:                'clang-diagnostic-*,clang-analyzer-*,clang-*,cert-*,
+                        google-explicit-constructor,google-global-names-in-headers,google-readability-casting,llvm-*,
+                        misc-*,performance-*,modernize-*,-misc-non-private-member-variables-in-classes,
+                        -misc-no-recursion,-cppcoreguidelines-macro-usage,-performance-unnecessary-value-param,
+                        -cert-err58-cpp-cppcoreguidelines-pro-bounds-array-to-pointer-decay,-modernize-use-trailing-return-type,
+                        -modernize-use-using,-modernize-use-default-member-init,-modernize-avoid-c-arrays,-modernize-macro-to-enum,
+                        -cert-dcl50-cpp, -llvm-qualified-auto,-readability-*,
+                        -misc-use-anonymous-namespace,-modernize-use-nodiscard,-cert-err58-cpp,-google-explicit-constructor,
+                        -llvm-include-order,-performance-avoid-endl,-google-readability-casting'
+WarningsAsErrors:      ''
+AnalyzeTemporaryDtors: false
+FormatStyle:           file
+CheckOptions:
+  - key:             bugprone-assert-side-effect.AssertMacros
+    value:           assert
+  - key:             bugprone-assert-side-effect.CheckFunctionCalls
+    value:           '1'
+  - key:             bugprone-dangling-handle.HandleClasses
+    value:           'std::basic_string_view;std::experimental::basic_string_view'
+  - key:             llvm-namespace-comment.ShortNamespaceLines
+    value:           '1'
+  - key:             llvm-namespace-comment.SpacesBeforeComments
+    value:           '1'
+...

@@ -1,0 +1,6 @@
+#ifndef INCLUDE_BOARD_PIECES_H_
+#define INCLUDE_BOARD_PIECES_H_
+
+
+
+#endif  // INCLUDE_BOARD_PIECES_H_

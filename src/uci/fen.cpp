@@ -1,0 +1,118 @@
+#include "fen.h"
+#include "../core/defs.h"
+#include "../board/board_state.h"
+#include <sstream>
+
+
+namespace uci {
+
+
+std::size_t Fen::apply(std::string_view input, brd::BoardState& state) {
+    SQ sq = SqNum::sqn_a8;
+    auto& board = state.getBoardMutable();
+    board.clear();
+
+    std::size_t i=0;
+    while(input[i] == ' ') i++;
+
+    for(; input[i] != ' '; i++) {
+        char c = input[i];
+        if(c == '/') {
+            sq -= 16;
+            continue;
+        }
+        if(std::isdigit(c)) {
+            int empty_sq = c - '0';
+            sq += empty_sq;
+            continue;
+        }
+
+        auto [kind, col] = c2p(c);
+        board.put(kind, col, sq++);
+    }
+
+
+    PColor tomove;
+    if(input[++i] == 'w') tomove = PColor::W;
+    else tomove = PColor::B;
+    // state.set_next_move_player(tomove);
+
+
+
+    i+=2;
+    // available castling
+    while(input[i] != ' ') {
+        switch(input[i++]) {
+            // Currently just ignore due to insternal state check. todo: apply
+            case 'K': ; break;
+            case 'Q': ; break;
+            case 'k': ; break;
+            case 'q': ; break;
+            default: continue;
+        }
+    }
+    i++;
+
+    // available enpassant
+    if(input[i] == '-') {
+        // Currently ignore it
+        // state.FEN_set_enpass(0);
+        i++;
+    }
+    else {
+        // auto fl = static_cast<NFile>(input[i] - 'a' + NFile::fA);
+        // auto rnk = static_cast<NRank>((input[i+1] - '1') * 10 + NRank::r1);
+        // state.FEN_set_enpass(COORD(fl, rnk));
+
+        i+=2;
+    }
+    while(input[i] != ' ') i++;
+    i++;
+
+    // check rule 50 ply clock
+    int ply = 0;
+    while(input[i] != ' ') {
+        ply *= 10;
+        ply += (input[i++] - '0');
+    }
+    state.resetState(ply);
+    i++;
+
+    // skip the total full moves and point to the end
+    while(i < input.size() && input[i] != ' ') i++;
+    while(i < input.size() && input[i] == ' ') i++;
+
+    return i;
+
+}
+
+std::string Fen::str(const brd::BoardState& state) const noexcept {
+    std::stringstream ss;
+    auto&& board = state.getBoard();
+    int empty = 0;
+    for (int i=(int)SqNum::sqn_a8; i>=0; i++) {
+        for (empty = 0; board.empty(i); i++) {
+            empty++;
+            if (i % 8 == 7) break;
+        }
+
+        if (empty) ss << empty;
+        if (i % 8 == 7) {
+            i -= 16;
+            if (i >= -1) ss << '/';
+            continue;
+        }
+        else {
+            BB mask = 1ull << i;
+            ss << p2c(board.getKind(mask), board.getColor(mask));
+        }
+    }
+
+    ss << (state.ply() % 2 ? " b " : " w ");
+    ss << "...";
+
+    return ss.str();
+}
+
+
+} // namespace uci

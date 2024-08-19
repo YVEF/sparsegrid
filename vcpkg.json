@@ -1,0 +1,23 @@
+{
+  "name": "sparsegrid",
+  "version": "0.0.1",
+  "dependencies": [
+    {
+      "name": "boost-test",
+      "version>=": "1.83.0"
+    },
+    {
+        "name": "boost-range",
+        "version>=": "1.83.0"
+    },
+    {
+        "name": "benchmark",
+        "version>=": "1.8.3#3"
+    },
+    {
+        "name": "eigen3",
+        "version>=": "3.4.0#4"
+    }
+  ],
+  "builtin-baseline": "1318ab14aae14db20085441cd71366891a9c9d0c"
+}
