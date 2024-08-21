@@ -18,7 +18,6 @@ struct MoveMask {
     // uint8_t promo: 1;
 };
 
-// todo: experiment: pack into 2 bytes
 struct Move {
     // 0|0|00 |0000 00|00 0000
     //  | |   |       --------- from (6)
@@ -42,8 +41,7 @@ struct Move {
 
     friend std::ostream& operator<<(std::ostream& str, const Move& move) noexcept;
 };
-// static_assert(sizeof(brd::Move) == 4, "packed into 32 bits");
-static_assert(sizeof(brd::Move) == 2, "packed into 32 bits");
+static_assert(sizeof(brd::Move) == 2, "brd::Move packed into 16 bits");
 
 #define NONE_MOVE brd::Move::None()
 

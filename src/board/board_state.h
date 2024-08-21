@@ -8,57 +8,26 @@
 #include "board.h"
 #include "../core/scores.h"
 
-
-#define UNDO_REC_DATA(from, to, kind, isNullMove) \
-    static_cast<uint16_t>((from) & 0x3F) \
-    | (static_cast<uint16_t>((to) & 0x3F) << 0x06) \
-    | (static_cast<uint16_t>(((int)kind) & 0x07) << 0x0C) \
-    | static_cast<uint16_t>((isNullMove) ? 0x8000 : 0x00)
-
-#define UNDO_REC_RULE_50(rule) static_cast<uint16_t>((rule) & 0x3F)
-#define UNDO_REC_CAPTURED_KIND(kind) static_cast<uint16_t>((kind) & 0x07) << 6
-#define UNDO_REC_CASTL(castl) static_cast<uint16_t>((castl) & 0x03) << 13
-#define UNDO_REC_PROMO(promo) static_cast<uint16_t>((uint16_t)(promo) & 0x01) << 15
-#define UNDO_REC_ENPASS(enpass) static_cast<uint16_t>((uint8_t)(bool)(enpass)) << 9;
-
-
-#define UNDO_REC_GET_FROM(mv) static_cast<uint8_t>((mv).data & 0x3f)
-#define UNDO_REC_GET_TO(mv) static_cast<uint8_t>(((mv).data >> 0x06) & 0x3f)
-#define UNDO_REC_GET_MOVE_KIND(mv) static_cast<PKind>(((mv).data >> 0x0C) & 0x07)
-#define UNDO_REC_GET_CAPTURED_KIND(mv) static_cast<PKind>(((mv).meta >> 6) & 0x07)
-#define UNDO_REC_GET_RULE_50(mv) static_cast<uint8_t>((mv).meta & 0x3F)
-#define UNDO_REC_GET_PROMO(mv) static_cast<bool>(((mv).meta >> 15) & 0x01)
-#define UNDO_REC_GET_ENPASS(mv) static_cast<bool>(((mv).meta >> 9) & 0x01)
-#define UNDO_REC_GET_CASTL(mv) static_cast<uint8_t>(((mv).meta >> 13) & 0x03)
-
-
 namespace brd {
 class BoardState {
 /** Undo move records. 32 bits packed */
-struct undo_recs_ {
-    /** layout:
-     * |0|000 |0000 00|00 0000
-     * | |    |       ---------- from
-     * | |    ------------------ to
-     * | ----------------------- kind
-     * ------------------------- is null move
-     */
-    uint16_t data;
+struct undoRec_ {
+    uint16_t from : 6;
+    uint16_t to : 6;
+    uint16_t moveKind : 3;
+    uint16_t isNull : 1;
 
-    /** layout:
-     * |0|00|0 00|0|0 00|00 0000
-     * | |  |    |  |    -------- rule_50_ply // The amount of non attack move before the current one
-     * | |  |    |  ------------- taken kind
-     * | |  |    ---------------- is_enpass // Indicated that the move is enpassant
-     * | |  --------------------- reserved
-     * | ------------------------ castling // The castling tipe (00, 01, 10) = (none, short, long)
-     * -------------------------- p2q // Indicates that a pawn that was replaced with a queen
-     */
-    uint16_t meta;
+    uint16_t rule50ply : 6;
+    uint16_t capturedKind : 3;
+    uint16_t isEnpass : 1;
+    uint16_t reserved : 3;
+    uint16_t castling : 2;
+    uint16_t promo : 1;
 };
+static_assert(sizeof(undoRec_) == 4, "undoRec_ packed into 32 bits");
 
 public:
-    typedef std::deque<undo_recs_> undoList_t;
+    typedef std::deque<undoRec_> undoList_t;
     explicit BoardState(brd::Board&& board) noexcept;
     void movegen(MoveList& mvList) noexcept;
     template<PColor Color, PKind Kind> void movegenFor(MoveList& mvList) noexcept;
@@ -76,10 +45,7 @@ public:
      * @brief   Return mutable board
      */
     Board& getBoardMutable() noexcept;
-//    PColor getSideToMove() const noexcept;
-//    void setSideToMove(PColor color) noexcept;
-//    PColor nextPlayer() const noexcept;
-    const undo_recs_& getLastMove() const noexcept;
+    const undoRec_& getLastMove() const noexcept;
     std::size_t ply() const noexcept;
     bool gameover() const noexcept;
     bool draw() const noexcept;
@@ -142,9 +108,11 @@ private:
 
     void setKingExistence_(PColor, bool) noexcept;
     void updateRookMeta_(PColor color, SQ from, SQ to, bool inc) noexcept;
+    undoRec_ buildUndoRec_(const brd::Move& move, PKind moveKind,
+                           PKind capturedKind, bool promo) noexcept;
 };
 
-inline const BoardState::undo_recs_& BoardState::getLastMove() const noexcept {
+inline const BoardState::undoRec_& BoardState::getLastMove() const noexcept {
     return m_undoList.back();
 }
 

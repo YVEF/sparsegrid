@@ -1,3 +1,4 @@
+#include <iostream>
 #include "engine.h"
 #include "core/caller_thread_executor.h"
 #include "search/mtdsearch.h"
@@ -79,3 +80,10 @@ template class Engine<exec::CallerThreadExecutor>;
 
 
 } // namespace sg
+
+extern "C" {
+void printEngineHello(int i) noexcept {
+    std::cout << "Hello from " << i << std::endl;
+}
+
+}

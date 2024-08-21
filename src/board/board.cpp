@@ -23,13 +23,11 @@ struct BrdZobristSource_ {
 static constexpr BrdZobristSource_ zobristSrc = [] {
     BrdZobristSource_ map{};
     gen::rand rnd{};
-    // auto seq = rnd.gen_sequence_u64<(BRD_SIZE * TOTAL_PKIND_NUM)+1+2+BRD_SIZE, 12345>();
-    auto seq = rnd.gen_sequence_u64<(BRD_SIZE * TOTAL_PKIND_NUM)+1+2+BRD_SIZE, 1293812938>();
+    auto seq = rnd.gen_sequence_u64<(BRD_SIZE * TOTAL_PKIND_NUM)+1+2+BRD_SIZE, 17317>();
     std::size_t idx=0;
     for(auto& i : map.map) for(auto& j : i) j = seq[idx++];
 
-    // map.blackToMove = 0x01;//seq[idx++];
-    map.blackToMove = 1221;//seq[idx++];
+    map.blackToMove = 1221;
     map.castling[0] = seq[idx++];
     map.castling[1] = seq[idx++];
     map.enpassant = seq[idx++];

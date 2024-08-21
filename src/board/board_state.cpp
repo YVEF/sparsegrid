@@ -109,14 +109,7 @@ void BoardState::registerMove(const Move& move) noexcept {
     }
     m_board.updateKey(move.castling, move.isEnpass);
 
-    undo_recs_ rec{};
-    rec.data = UNDO_REC_DATA(move.from, move.to, moveKind, false);
-    rec.meta = UNDO_REC_RULE_50(m_rule50Ply);
-    rec.meta |= UNDO_REC_CAPTURED_KIND(capturedKind);
-    rec.meta |= UNDO_REC_CASTL(move.castling);
-    rec.meta |= UNDO_REC_PROMO(promo);
-    rec.meta |= UNDO_REC_ENPASS(move.isEnpass);
-
+    undoRec_ rec = buildUndoRec_(move, moveKind, capturedKind, promo);
     m_undoList.emplace_back(rec);
     if(!isCapture && moveKind != PKind::pP) m_rule50Ply++;
     else m_rule50Ply = 0;
@@ -146,16 +139,16 @@ void BoardState::movegen(MoveList& mvList) noexcept {
 
 
 void BoardState::undo() noexcept {
-    undo_recs_ rec = m_undoList.back();; m_undoList.pop_back();
+    undoRec_ rec = m_undoList.back();; m_undoList.pop_back();
 
-    auto from = UNDO_REC_GET_FROM(rec);
-    auto to = UNDO_REC_GET_TO(rec);
-    auto moveKind = UNDO_REC_GET_MOVE_KIND(rec);
-    auto capturedKind = UNDO_REC_GET_CAPTURED_KIND(rec);
-    auto rule50 = UNDO_REC_GET_RULE_50(rec);
-    auto promo = UNDO_REC_GET_PROMO(rec);
-    auto isEnpass = UNDO_REC_GET_ENPASS(rec);
-    auto castle = UNDO_REC_GET_CASTL(rec);
+    auto from = static_cast<SQ>(rec.from);
+    auto to = static_cast<SQ>(rec.to);
+    auto moveKind = static_cast<PKind>(rec.moveKind);
+    auto capturedKind = static_cast<PKind>(rec.capturedKind);
+    auto rule50 = static_cast<uint8_t>(rec.rule50ply);
+    auto promo = static_cast<bool>(rec.promo);
+    auto isEnpass = static_cast<bool>(rec.isEnpass);
+    auto castle = static_cast<uint8_t>(rec.castling);
 
     BB fromMask = 1ull << from;
     BB toMask = 1ull << to;
@@ -286,10 +279,10 @@ SQ BoardState::PG_enpassPos() const noexcept {
     if(!ply()) return 0;
 
     auto&& prevMove = m_undoList.back();
-    auto kind = UNDO_REC_GET_MOVE_KIND(prevMove);
+    auto kind = static_cast<PKind>(prevMove.moveKind);
     if (kind != PKind::pP) [[likely]] return 0x00;
-    SQ from = UNDO_REC_GET_FROM(prevMove);
-    SQ to = UNDO_REC_GET_TO(prevMove);
+    SQ from = static_cast<SQ>(prevMove.from);
+    SQ to = static_cast<SQ>(prevMove.to);
     if (dist(from, to) != 16) return 0x00;
 
 
@@ -304,15 +297,6 @@ SQ BoardState::PG_enpassPos() const noexcept {
             : movegen::getEnpassantAttack<PColor::W>(sq, *this);
         if (rr) return rr;
     }
-
-
-//    if (dist(from, to) == 16) {
-//
-//        SQ enpassSQ = moveColor == PColor::W ? to - 8 : to + 8;
-//        if (validateEnpassPosition(enpassSQ, to))
-//            return enpassSQ;
-//    }
-
     return 0x00;
 }
 
@@ -354,6 +338,23 @@ void BoardState::setFenCastlingMask(uint64_t mask) noexcept {
 
 uint64_t BoardState::getFenCastlingMask() const noexcept {
     return m_fenCastlingMask;
+}
+
+BoardState::undoRec_ BoardState::buildUndoRec_(
+    const brd::Move& move, PKind moveKind,
+    PKind capturedKind, bool promo) noexcept {
+
+    undoRec_ rec{};
+    rec.from = move.from;
+    rec.to = move.to;
+    rec.moveKind = moveKind;
+    rec.isNull = move.isNull;
+    rec.rule50ply = m_rule50Ply;
+    rec.capturedKind = capturedKind;
+    rec.castling = move.castling;
+    rec.promo = promo;
+    rec.isEnpass = move.isEnpass;
+    return rec;
 }
 
 } // namespace brd

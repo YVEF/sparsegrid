@@ -5,11 +5,6 @@
 namespace search {
 #define TTENTRY_KEY16(key) static_cast<uint16_t>((key))
 #define TTENTRY_KEY32(key) static_cast<uint32_t>((key))
-#define TTDATA_BND_TYPE(dt) static_cast<uint8_t>((dt)) >> 14
-#define TTDATA_GEN(dt) static_cast<int16_t>(dt & 0xFF)
-#define TTDATA_HORIZON(dt) static_cast<uint16_t>(dt & 0x1F) >> 8
-#define TTDATA_WRT(gen, hor, bnd) uint16_t((gen) & 0xFF) | (uint16_t((hor) & 0x1F) << 8) | (uint16_t((bnd) & 0x03) << 14)
-#define TTDATA_SCORE(dt) static_cast<int16_t>(dt & 0x1FF)
 
 
 TTable::TTable(const common::Options& opts, common::Stat& stat) noexcept 
@@ -47,8 +42,6 @@ auto TTable::probe(uint64_t key) noexcept -> TTDescriptor {
 
     return TTDescriptor(ent, m_age, bound);
 }
-
-
 
 void TTable::incrementAge() noexcept {
     m_age++;

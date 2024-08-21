@@ -268,9 +268,9 @@ uint8_t getEnpassantAttack(SQ sq, const brd::BoardState& state) noexcept {
     if(!state.ply()) return 0x00;
 
     const auto& lmv = state.getLastMove();
-    PKind moveKind = UNDO_REC_GET_MOVE_KIND(lmv);
-    SQ from = UNDO_REC_GET_FROM(lmv);
-    SQ to = UNDO_REC_GET_TO(lmv);
+    PKind moveKind = static_cast<PKind>(lmv.moveKind);
+    SQ from = static_cast<SQ>(lmv.from);
+    SQ to = static_cast<SQ>(lmv.to);
     BB toMask = 1ull << to;
     auto&& brd = state.getBoard();
     PColor targetCol = brd.getColor(toMask);

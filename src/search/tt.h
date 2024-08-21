@@ -13,7 +13,6 @@ static constexpr uint8_t LOWER_BND = 0x02;
 static constexpr uint8_t EXACT_BND = 0x03;
 
 struct TTEntry {
-//    uint16_t key;
     uint32_t key;
     Score score;
     // |00|00 0000 |0000 0000
@@ -25,14 +24,12 @@ struct TTEntry {
     uint16_t bound : 2;
     brd::Move hashMove;
 };
-// static_assert(sizeof(TTEntry) == 8, "TTEntry layout");
-
-
+static_assert(sizeof(TTEntry) == 12, "TTEntry layout");
 
 struct TTChain {
     TTEntry entries[4];
 };
-// static_assert(sizeof(TTChain) == 32, "Packer Move Size");
+static_assert(sizeof(TTChain) == 48, "Packer Move Size");
 
 struct TTDescriptor {
     explicit TTDescriptor(TTEntry* hdl, uint8_t gen, uint8_t bound = 0) noexcept

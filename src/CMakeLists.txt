@@ -22,29 +22,29 @@ set(SEARCH_SRC
 )
 
 set(DBG_UTILS_SRC 
-    dbg/sg_log.cpp
-    dbg/debugger.cpp
+        dbg/sg_log.cpp
+        dbg/debugger.cpp
 )
 
 set(CORE_SRC 
-    core/defs.cpp
-    core/caller_thread_executor.cpp
-    # core/sg_intrin.cpp
-    # core/thread_pool_executor.cpp
+        core/defs.cpp
+        core/caller_thread_executor.cpp
+        # core/sg_intrin.cpp
+        # core/thread_pool_executor.cpp
 )
 
 set(UCI_SRC 
-    uci/fen.cpp
-    uci/protocol.cpp
+        uci/fen.cpp
+        uci/protocol.cpp
 )
 
 set(ENGINE_SRC
-    engine.cpp
+        engine.cpp
 )
 
  set(ADAPTERS_SRC
-     adapters/polyglot.cpp
-     adapters/polyglot_hashkeys.cpp
+        adapters/polyglot.cpp
+        adapters/polyglot_hashkeys.cpp
  )
 
 set(COMMON_SRC
@@ -52,27 +52,29 @@ set(COMMON_SRC
 )
 
 ## === DEFS
-if(${CMAKE_BUILD_TYPE} STREQUAL  "Debug")
-    # add_definitions(-DENABLE_STRUCTURE_LOGGING  -DENABLE_LOGGING)
-    # add_definitions(-DENABLE_STRUCTURE_LOGGING_DBG)
+if("${CMAKE_BUILD_TYPE}" STREQUAL  "Debug")
     add_definitions(-DENABLE_SG_ASSERT)
     add_definitions(-DENABLE_SG_ASSERT_DBG)
-    #add_definitions(-DENABLE_MAT_PRINT_EVAL)
 endif()
 ## ===
 
-add_library(${PROJECT_LIB_NAME} STATIC 
-    ${BOARD_SRC} 
-    ${EVAL_SRC} 
-    ${SEARCH_SRC} 
-    ${DBG_UTILS_SRC} 
-    ${CORE_SRC} 
-    ${UCI_SRC}
-    ${ENGINE_SRC}
-    ${ADAPTERS_SRC}
-    ${COMMON_SRC}
+#find_package(PythonLibs 2.7 REQUIRED)
+#find_package (Python3 COMPONENTS Interpreter Development NumPy)
+#find_package(Boost COMPONENTS python REQUIRED)
+
+set(PROJ_SOURCES ${BOARD_SRC}
+        ${EVAL_SRC}
+        ${SEARCH_SRC}
+        ${DBG_UTILS_SRC}
+        ${CORE_SRC}
+        ${UCI_SRC}
+        ${ENGINE_SRC}
+        ${ADAPTERS_SRC}
+        ${COMMON_SRC}
 )
 
+add_library(${PROJECT_LIB_NAME} STATIC  ${PROJ_SOURCES})
+add_library(${PROJECT_LIB_NAME}shared SHARED  ${PROJ_SOURCES} interop.cpp interop2.cpp)
 
 
 find_package(Eigen3 CONFIG REQUIRED)
@@ -80,6 +82,6 @@ target_include_directories(${PROJECT_LIB_NAME} PUBLIC ${EIGEN3_INCLUDE_DIR})
 
 set(PROJECT_NAME_EXE ${PROJECT_NAME})
 add_executable(${PROJECT_NAME_EXE} main.cpp)
-target_link_libraries(${PROJECT_NAME_EXE} PUBLIC ${PROJECT_LIB_NAME} Eigen3::Eigen)
-
-
+target_link_libraries(${PROJECT_NAME_EXE} PUBLIC ${PROJECT_LIB_NAME} Eigen3::Eigen ${Boost_LIBRARIES})
+#target_include_directories(${PROJECT_NAME_EXE} PRIVATE ${Python3_INCLUDE_DIRS})
+install(TARGETS ${PROJECT_NAME_EXE} DESTINATION lib)

@@ -67,6 +67,10 @@ void Engine<TExecutor>::go(uint64_t wtime, uint64_t btime, TGoCallback&& callbac
 }
 } // namespace sg
 
+extern "C" {
+void printEngineHello(int i) noexcept;
+}
+
 
 
 #endif  // INCLUDE_SRC_ENGINE_H_
