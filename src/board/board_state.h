@@ -8,6 +8,7 @@
 #include "board.h"
 #include "../core/scores.h"
 
+namespace common { struct Options; }
 namespace brd {
 class BoardState {
 /** Undo move records. 32 bits packed */
@@ -178,7 +179,7 @@ template<PColor Color> bool BoardState::kingUnderCheck() const noexcept {
 }
 
 
-
+PColor getNextPlayerColor(const brd::BoardState& state, const common::Options& opts) noexcept;
 
 
 

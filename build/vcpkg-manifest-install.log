@@ -1,0 +1,74 @@
+Detecting compiler hash for triplet x64-linux...
+Compiler found: /sbin/c++
+All requested packages are currently installed.
+Total install time: 540 ns
+benchmark provides CMake targets:
+
+  # this is heuristically generated, and may not be correct
+  find_package(benchmark CONFIG REQUIRED)
+  target_link_libraries(main PRIVATE benchmark::benchmark benchmark::benchmark_main)
+
+benchmark provides pkg-config modules:
+
+    # Google microbenchmark framework
+    benchmark
+
+    # Google microbenchmark framework (with main() function)
+    benchmark_main
+
+The package python3 is compatible with built-in CMake targets:
+
+    find_package(Python3 COMPONENTS Development REQUIRED)
+    target_link_libraries(main PRIVATE Python3::Python)
+
+The package python3 provides a python interpreter that supports virtual environments:
+
+    $ tools/python3/python3.11 -m venv /path/to/venv
+    $ export VIRTUAL_ENV=/path/to/venv
+    $ export PATH=/path/to/venv/bin:$PATH
+    $ export -n PYTHONHOME
+    $ unset PYTHONHOME
+
+    See https://docs.python.org/3/library/venv.html for more details.
+
+boost-python provides CMake targets:
+
+  # this is heuristically generated, and may not be correct
+  find_package(boost_python CONFIG REQUIRED)
+  target_link_libraries(main PRIVATE Boost::python)
+
+  find_package(boost_python311 CONFIG REQUIRED)
+  target_link_libraries(main PRIVATE Boost::python311)
+
+boost-test provides CMake targets:
+
+  # this is heuristically generated, and may not be correct
+  find_package(boost_included_prg_exec_monitor CONFIG REQUIRED)
+  target_link_libraries(main PRIVATE Boost::included_prg_exec_monitor)
+
+  find_package(boost_included_test_exec_monitor CONFIG REQUIRED)
+  target_link_libraries(main PRIVATE Boost::included_test_exec_monitor)
+
+  find_package(boost_included_unit_test_framework CONFIG REQUIRED)
+  target_link_libraries(main PRIVATE Boost::included_unit_test_framework)
+
+  find_package(boost_prg_exec_monitor CONFIG REQUIRED)
+  target_link_libraries(main PRIVATE Boost::prg_exec_monitor)
+
+  find_package(boost_test_exec_monitor CONFIG REQUIRED)
+  target_link_libraries(main PRIVATE Boost::test_exec_monitor)
+
+  find_package(boost_unit_test_framework CONFIG REQUIRED)
+  target_link_libraries(main PRIVATE Boost::unit_test_framework)
+
+eigen3 provides CMake targets:
+
+  # this is heuristically generated, and may not be correct
+  find_package(Eigen3 CONFIG REQUIRED)
+  target_link_libraries(main PRIVATE Eigen3::Eigen)
+
+eigen3 provides pkg-config modules:
+
+    # A C++ template library for linear algebra: vectors, matrices, and related algorithms
+    eigen3
+

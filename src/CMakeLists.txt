@@ -58,10 +58,6 @@ if("${CMAKE_BUILD_TYPE}" STREQUAL  "Debug")
 endif()
 ## ===
 
-#find_package(PythonLibs 2.7 REQUIRED)
-#find_package (Python3 COMPONENTS Interpreter Development NumPy)
-#find_package(Boost COMPONENTS python REQUIRED)
-
 set(PROJ_SOURCES ${BOARD_SRC}
         ${EVAL_SRC}
         ${SEARCH_SRC}
@@ -73,15 +69,38 @@ set(PROJ_SOURCES ${BOARD_SRC}
         ${COMMON_SRC}
 )
 
+set(INTEROP_PROJ sg_trainer_interop)
 add_library(${PROJECT_LIB_NAME} STATIC  ${PROJ_SOURCES})
-add_library(${PROJECT_LIB_NAME}shared SHARED  ${PROJ_SOURCES} interop.cpp interop2.cpp)
+add_library(${INTEROP_PROJ} SHARED  ${PROJ_SOURCES} interop.cpp)
 
 
+
+find_package(Python3 REQUIRED COMPONENTS Interpreter Development NumPy)
+find_package(Boost COMPONENTS REQUIRED python numpy)
 find_package(Eigen3 CONFIG REQUIRED)
 target_include_directories(${PROJECT_LIB_NAME} PUBLIC ${EIGEN3_INCLUDE_DIR})
 
 set(PROJECT_NAME_EXE ${PROJECT_NAME})
 add_executable(${PROJECT_NAME_EXE} main.cpp)
-target_link_libraries(${PROJECT_NAME_EXE} PUBLIC ${PROJECT_LIB_NAME} Eigen3::Eigen ${Boost_LIBRARIES})
-#target_include_directories(${PROJECT_NAME_EXE} PRIVATE ${Python3_INCLUDE_DIRS})
-install(TARGETS ${PROJECT_NAME_EXE} DESTINATION lib)
+target_link_libraries(${PROJECT_NAME_EXE} PUBLIC
+        ${PROJECT_LIB_NAME}
+        Eigen3::Eigen
+)
+
+target_link_libraries(${INTEROP_PROJ} PUBLIC
+        Boost::python
+        Boost::numpy
+        Python3::Python
+        Python3::NumPy
+)
+target_include_directories(${INTEROP_PROJ} PRIVATE
+        ${Python3_INCLUDE_DIRS}
+        ${Boost_INCLUDE_DIR}
+        ${Python3_NumPy_INCLUDE_DIRS})
+
+message(STATUS "!!@!!@@   " ${Python3_NumPy_INCLUDE_DIRS})
+set_target_properties(${INTEROP_PROJ} PROPERTIES PREFIX "")
+add_custom_command(TARGET ${INTEROP_PROJ} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:${INTEROP_PROJ}> ${CMAKE_SOURCE_DIR}/pytest/${INTEROP_PROJ}.so
+)
+

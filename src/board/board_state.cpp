@@ -3,6 +3,7 @@
 #include "../dbg/sg_assert.h"
 #include "../core/scores.h"
 #include "../dbg/debugger.h"
+#include "../common/options.h"
 
 #define CASTL_NEW_KING_POS(kingPos, castlType) ((castlType) == brd::CastlingType::C_SHORT ? (kingPos)+2 : (kingPos)-2)
 #define CASTL_NEW_ROOK_POS(kingPos, castlType) (castlType == brd::CastlingType::C_SHORT ? (kingPos)+1 : (kingPos)-1)
@@ -355,6 +356,16 @@ BoardState::undoRec_ BoardState::buildUndoRec_(
     rec.promo = promo;
     rec.isEnpass = move.isEnpass;
     return rec;
+}
+
+PColor getNextPlayerColor(const brd::BoardState& state, const common::Options& opts) noexcept {
+    if (state.buildFromFen()) {
+        SG_ASSERT(state.FenGetNextPlayer().has_value());
+        return state.FenGetNextPlayer().value();
+    }
+
+    return (opts.EngineSide && state.ply() % 2 == 0) || (!opts.EngineSide && state.ply() % 2)
+           ? PColor::W : PColor::B;
 }
 
 } // namespace brd

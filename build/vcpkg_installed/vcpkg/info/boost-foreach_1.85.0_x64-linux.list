@@ -1,0 +1,14 @@
+x64-linux/
+x64-linux/include/
+x64-linux/include/boost/
+x64-linux/include/boost/foreach.hpp
+x64-linux/include/boost/foreach_fwd.hpp
+x64-linux/share/
+x64-linux/share/boost-foreach/
+x64-linux/share/boost-foreach/copyright
+x64-linux/share/boost-foreach/vcpkg.spdx.json
+x64-linux/share/boost-foreach/vcpkg_abi_info.txt
+x64-linux/share/boost_foreach/
+x64-linux/share/boost_foreach/boost_foreach-config-version.cmake
+x64-linux/share/boost_foreach/boost_foreach-config.cmake
+x64-linux/share/boost_foreach/boost_foreach-targets.cmake

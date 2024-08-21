@@ -71,6 +71,8 @@ public:
     BB occupancy() const noexcept;
     void rebuildKey() noexcept;
 
+    [[nodiscard]] std::tuple<uint64_t, uint64_t, uint64_t, uint64_t> rawBoard() const noexcept;
+
 private:
     BB m_bb_col = 0xFFFF000000000000; // color
     BB m_bb_pbq = 0x2CFF00000000FF2C; // P.B.Q

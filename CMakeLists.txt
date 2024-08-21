@@ -1,16 +1,17 @@
-cmake_minimum_required(VERSION 3.23)
+cmake_minimum_required(VERSION 3.29.6)
 if (NOT EXISTS $ENV{VCPKG_ROOT})
 	message(FATAL_ERROR "$VCPKG_ROOT is not defined")
 endif()
-project(sparsegrid VERSION 0.0.1)
+
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 20)
 set(Boost_NO_WARN_NEW_VERSIONS 1)
 set(CMAKE_TOOLCHAIN_FILE $ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-#set(VCPKG_LOAD_VCVARS_ENV ON)
+set(VCPKG_LOAD_VCVARS_ENV ON)
 #set(CMAKE_SHARED_MODULE_PREFIX "")
+project(sparsegrid VERSION 0.0.1)
 
 set(PROJECT_LIB_NAME ${PROJECT_NAME}core)
 set(PROJECT_TEST_NAME ${PROJECT_NAME}test)
@@ -50,6 +51,7 @@ else()
 #         )
 #     add_link_options(-flto=full)
 #     add_definitions(-DNDEBUG)
+    add_compile_options(-flto)
 endif()
 
 

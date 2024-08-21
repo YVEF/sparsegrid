@@ -22,16 +22,8 @@ static int convertPiece(PKind kind, PColor color) noexcept {
     return res + (int)color;
 }
 
-static inline PColor getNextPlayerColor(const brd::BoardState& state, const common::Options& opts) noexcept {
-    if (state.FenGetNextPlayer().has_value()) return state.FenGetNextPlayer().value();
-
-    return (opts.EngineSide && state.ply() % 2 == 0) || (!opts.EngineSide && state.ply() % 2)
-        ? PColor::W : PColor::B;
-}
-
 static uint64_t bldTurnHash(const brd::BoardState& state, const common::Options& opts) noexcept {
-    auto color = state.buildFromFen() ? state.FenGetNextPlayer().value() : getNextPlayerColor(state, opts);
-    if (color) return poly_keys[780];
+    if (getNextPlayerColor(state, opts)) return poly_keys[780];
     return 0;
 }
 

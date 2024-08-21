@@ -304,4 +304,8 @@ void Board::rebuildKey() noexcept {
     updateKey(0x00, false);
 }
 
+std::tuple<uint64_t, uint64_t, uint64_t, uint64_t> Board::rawBoard() const noexcept {
+    return std::make_tuple(m_bb_col, m_bb_nbk, m_bb_pbq, m_bb_rqk);
+}
+
 } // namespace brd

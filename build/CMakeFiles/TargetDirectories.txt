@@ -1,0 +1,17 @@
+/home/iaroslav/src/sparsegrid/build/CMakeFiles/test.dir
+/home/iaroslav/src/sparsegrid/build/CMakeFiles/edit_cache.dir
+/home/iaroslav/src/sparsegrid/build/CMakeFiles/rebuild_cache.dir
+/home/iaroslav/src/sparsegrid/build/src/CMakeFiles/sparsegridcore.dir
+/home/iaroslav/src/sparsegrid/build/src/CMakeFiles/sg_trainer_interop.dir
+/home/iaroslav/src/sparsegrid/build/src/CMakeFiles/sparsegrid.dir
+/home/iaroslav/src/sparsegrid/build/src/CMakeFiles/test.dir
+/home/iaroslav/src/sparsegrid/build/src/CMakeFiles/edit_cache.dir
+/home/iaroslav/src/sparsegrid/build/src/CMakeFiles/rebuild_cache.dir
+/home/iaroslav/src/sparsegrid/build/tests/CMakeFiles/sparsegridtest.dir
+/home/iaroslav/src/sparsegrid/build/tests/CMakeFiles/test.dir
+/home/iaroslav/src/sparsegrid/build/tests/CMakeFiles/edit_cache.dir
+/home/iaroslav/src/sparsegrid/build/tests/CMakeFiles/rebuild_cache.dir
+/home/iaroslav/src/sparsegrid/build/perft/CMakeFiles/sparsegridperft.dir
+/home/iaroslav/src/sparsegrid/build/perft/CMakeFiles/test.dir
+/home/iaroslav/src/sparsegrid/build/perft/CMakeFiles/edit_cache.dir
+/home/iaroslav/src/sparsegrid/build/perft/CMakeFiles/rebuild_cache.dir

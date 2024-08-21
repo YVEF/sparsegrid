@@ -3,24 +3,12 @@
   "version": "0.0.1",
   "dependencies": [
     {
-      "name": "boost-test",
-      "version>=": "1.83.0"
-    },
-    {
         "name": "benchmark",
-        "version>=": "1.8.3#3"
+        "version>=": "1.8.5"
     },
     {
         "name": "eigen3",
         "version>=": "3.4.0#4"
-    },
-    {
-        "name": "boost-python",
-        "version>=": "1.85.0#1"
-    },
-    {
-        "name": "python3",
-        "version>=": "3.11.8#4"
     }
   ],
   "builtin-baseline": "bb002e69deb36c00e9ce21810f69eff349a833f7"

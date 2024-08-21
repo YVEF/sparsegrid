@@ -1,0 +1,1 @@
+/sbin/c++ -g CMakeFiles/sparsegridperft.dir/main.cpp.o CMakeFiles/sparsegridperft.dir/runner.cpp.o -o sparsegridperft  ../src/libsparsegridcore.a

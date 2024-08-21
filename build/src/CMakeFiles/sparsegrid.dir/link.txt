@@ -1,0 +1,1 @@
+/sbin/c++ -g CMakeFiles/sparsegrid.dir/main.cpp.o -o sparsegrid  libsparsegridcore.a
