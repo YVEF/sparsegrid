@@ -109,14 +109,10 @@ static constexpr std::size_t nnInputSize() {
 }
 
 np::ndarray initNNInputLayer() {
-    std::cout << "1\n";
     constexpr auto sz= nnInputSize();
     Py_intptr_t shape[1] = { sz };
-    std::cout << "2\n";
     auto kk = np::dtype::get_builtin<double>();
-    std::cout << "3\n";
     np::ndarray result = np::zeros(1, shape, kk);
-    std::cout << "4\n";
 
     return result;
 }
@@ -133,19 +129,20 @@ static void fillBits(double* input, const auto& rawBrd) {
 }
 
 // todo: rewrite to swap only bits
-void fillInputLayer(interop::CDC* cdc, double* input) {
+void fillInputLayer(interop::CDC* cdc, const np::ndarray& input) {
     constexpr auto sz = nnInputSize();
-    std::fill_n(input, sz, 0.0);
+    auto data = reinterpret_cast<double*>(input.get_data());
+    std::fill_n(data, sz, 0.0);
 
     auto rawBrd = cdc->m_state.getBoard().rawBoard();
-    fillBits<0>(input, rawBrd);
-    fillBits<1>(input, rawBrd);
-    fillBits<2>(input, rawBrd);
-    fillBits<3>(input, rawBrd);
+    fillBits<0>(data, rawBrd);
+    fillBits<1>(data, rawBrd);
+    fillBits<2>(data, rawBrd);
+    fillBits<3>(data, rawBrd);
     if (getNextPlayerColor(cdc->m_state, cdc->m_opts))
-        input[256] = 1.0;
+        data[256] = 1.0;
     else
-        input[319] = 1.0;
+        data[319] = 1.0;
 }
 
 
