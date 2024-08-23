@@ -398,9 +398,11 @@ void genCastling(SQ sq, brd::MoveList& mvList, const brd::BoardState& state) noe
             SG_ASSERT(Color == PColor::W);
 
             auto rooks = board.getPieceSqMask<Color, PKind::pR>();
-            if((rooks & whiteShortCastl) && (whiteShortCastlMask & occupied) == whiteShortCastl)
+            if((rooks & whiteShortCastl) && (whiteShortCastlMask & occupied) == whiteShortCastl
+                && state.rightRookNotMoved<PColor::W>())
                 castling = castling | brd::CastlingType::C_SHORT;
-            if((rooks & whiteLongCastl) && (whiteLongCastlMask & occupied) == whiteLongCastl)
+            if((rooks & whiteLongCastl) && (whiteLongCastlMask & occupied) == whiteLongCastl
+                && state.leftRookNotMoved<PColor::W>())
                 castling = castling | brd::CastlingType::C_LONG;
         }
     }
@@ -409,13 +411,16 @@ void genCastling(SQ sq, brd::MoveList& mvList, const brd::BoardState& state) noe
             SG_ASSERT(Color == PColor::B);
 
             auto rooks = board.getPieceSqMask<Color, PKind::pR>();
-            if((rooks & blackShortCastl) && (blackShortCastlMask & occupied) == blackShortCastl)
+            if((rooks & blackShortCastl) && (blackShortCastlMask & occupied) == blackShortCastl
+                && state.rightRookNotMoved<PColor::B>())
                 castling = castling | brd::CastlingType::C_SHORT;
-            if((rooks & blackLongCastl) && (blackLongCastlMask & occupied) == blackLongCastl)
+            if((rooks & blackLongCastl) && (blackLongCastlMask & occupied) == blackLongCastl
+                && state.leftRookNotMoved<PColor::B>())
                 castling = castling | brd::CastlingType::C_LONG;
         }
     }
 
+    // state.kingUnderCheck<Color> check in the last order because of expencive attack map computation
     if (!castling || state.kingUnderCheck<Color>())
         return;
 

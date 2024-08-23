@@ -3,27 +3,26 @@
 #include "board/board_state.h"
 #include "common/options.h"
 #include <tuple>
-//#include <boost/numpy.hpp>
 #include <boost/python/numpy.hpp>
 
 namespace np = boost::python::numpy;
-//namespace np = boost::numpy;
 namespace python = boost::python;
 
 #define OBJECT_NAME(obj) #obj
 
-char const* greet(int i) {
-    return "hello, world";
+
+namespace interop {
+class CDC;
+void welcome(interop::CDC* cdc) {
+    std::cout << "welcome\n";
 }
 
 
-
-namespace interop {
 struct CDCMove {
     uint8_t from;
     uint8_t to;
     uint8_t castling;
-    bool isEnpassant;
+    bool isEnpass;
     bool isNAM() { return !from && !to && !castling; }
 };
 
@@ -44,13 +43,12 @@ private:
 class CDC {
 public:
     explicit CDC(brd::BoardState&& state, common::Options opts) noexcept
-    : m_state(std::move(state)), m_opts(opts)//, m_mvCollection(std::make_shared<interop::MoveCollection>())
+    : m_state(std::move(state)), m_opts(opts)
     {}
 
 public:
     brd::BoardState m_state;
     common::Options m_opts;
-//    std::shared_ptr<interop::MoveCollection> m_mvCollection;
     interop::MoveCollection m_mvCollection{};
 };
 
@@ -63,8 +61,26 @@ interop::CDC* initCDC(bool color) noexcept {
     return new interop::CDC(brd::BoardState{brd::Board{}}, opts);
 }
 
+auto convert_(const brd::Move& move) {
+    interop::CDCMove cdcMove{};
+    cdcMove.from = move.from;
+    cdcMove.to = move.to;
+    cdcMove.castling = move.castling;
+    cdcMove.isEnpass = move.isEnpass;
+    return cdcMove;
+}
 
-void makeMove(interop::CDC* cdc, const brd::Move& move) noexcept {
+auto convert_(const interop::CDCMove& cdcMove) {
+    brd::Move move{};
+    move.from = cdcMove.from;
+    move.to = cdcMove.to;
+    move.castling = cdcMove.castling;
+    move.isEnpass = cdcMove.isEnpass;
+    return move;
+}
+
+void makeMove(interop::CDC* cdc, const interop::CDCMove& cdcMove) noexcept {
+    auto move = convert_(cdcMove);
     cdc->m_state.registerMove(move);
 }
 
@@ -76,6 +92,8 @@ void freeCDC(interop::CDC* cdc) {
     delete cdc;
 }
 
+
+
 interop::MoveCollection* nextMoves(interop::CDC* cdc, bool color) {
     cdc->m_mvCollection.clearBag();
     std::cout << "reset done\n";
@@ -86,19 +104,18 @@ interop::MoveCollection* nextMoves(interop::CDC* cdc, bool color) {
 
     while (mvlist.size()) {
         auto move = mvlist.pop();
-        interop::CDCMove cdcMove{};
-        cdcMove.from = move.from;
-        cdcMove.to = move.to;
-        cdcMove.castling = move.castling;
-        cdcMove.isEnpassant = move.isEnpass;
+        interop::CDCMove cdcMove = convert_(move);
         cdc->m_mvCollection.push(cdcMove);
     }
     return &cdc->m_mvCollection;
 }
 
-void welcome(interop::CDC* cdc) {
-    std::cout << "welcome\n";
+interop::CDCMove recognizeMove(const interop::CDC* cdc, uint8_t from, uint8_t to) {
+    auto move = recognizeMove(from, to, cdc->m_state.getBoard());
+    return convert_(move);
 }
+
+
 
 static constexpr std::size_t nnInputSize() {
     using rawBoardTuple = decltype(std::declval<brd::BoardState>().getBoard().rawBoard());
@@ -155,26 +172,28 @@ BOOST_PYTHON_MODULE(sg_trainer_interop) {
     python::class_<interop::CDCMove>(OBJECT_NAME(CDCMove), python::no_init)
         .add_property("fromSq", python::make_getter(&interop::CDCMove::from))
         .add_property("toSq", python::make_getter(&interop::CDCMove::to))
-        .add_property("castling", python::make_getter(&interop::CDCMove::castling));
+        .add_property("castling", python::make_getter(&interop::CDCMove::castling))
+        .add_property("isEnpass", python::make_getter(&interop::CDCMove::isEnpass));
 
     python::class_<interop::CDC, boost::noncopyable>(OBJECT_NAME(CDC), python::no_init);
     python::class_<interop::MoveCollection, boost::noncopyable>(OBJECT_NAME(MoveCollection), python::no_init)
         .add_property("size", python::make_function(&interop::MoveCollection::size))
         .def("getMove", &interop::MoveCollection::getMove, python::return_value_policy<python::return_by_value>());
 
-    python::class_<interop::CDCMove, boost::noncopyable>(OBJECT_NAME(CDCMove), python::no_init)
-        .add_property("fromSq", python::make_getter(&interop::CDCMove::from))
-        .add_property("toSq", python::make_getter(&interop::CDCMove::to))
-        .add_property("castling", python::make_getter(&interop::CDCMove::castling));
+//    python::class_<interop::CDCMove, boost::noncopyable>(OBJECT_NAME(CDCMove), python::no_init)
+//        .add_property("fromSq", python::make_getter(&interop::CDCMove::from))
+//        .add_property("toSq", python::make_getter(&interop::CDCMove::to))
+//        .add_property("castling", python::make_getter(&interop::CDCMove::castling));
 
 
     python::def(OBJECT_NAME(initCDC), initCDC, python::return_value_policy<python::reference_existing_object>());
     python::def(OBJECT_NAME(nextMoves), nextMoves, python::return_value_policy<python::reference_existing_object>());
 
-    python::def(OBJECT_NAME(welcome), welcome);
+    python::def(OBJECT_NAME(welcome), interop::welcome);
     python::def(OBJECT_NAME(makeMove), makeMove);
     python::def(OBJECT_NAME(undoMove), undoMove);
     python::def(OBJECT_NAME(freeCDC), freeCDC);
     python::def(OBJECT_NAME(fillInputLayer), fillInputLayer);
     python::def(OBJECT_NAME(initNNInputLayer), initNNInputLayer);
+    python::def(OBJECT_NAME(recognizeMove), recognizeMove);
 }

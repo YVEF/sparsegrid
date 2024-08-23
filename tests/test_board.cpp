@@ -31,17 +31,14 @@ BOOST_AUTO_TEST_CASE(test_initial_position) {
 BOOST_AUTO_TEST_CASE(test_moves) {
     brd::Board board{};
     auto sq_b_p = board.getPieceSqMask<PColor::B, PKind::pP>();
-    // std::cout << std::bitset<64>(sq_b_p) << std::endl;
     board.slideTo(48, 40);
     auto sq_b_p_2 = board.getPieceSqMask<PColor::B, PKind::pP>();
-    // std::cout << std::bitset<64>(sq_b_p_2) << std::endl;
     board.slideTo(40, 32);
     auto sq_b_p_3 = board.getPieceSqMask<PColor::B, PKind::pP>();
 
     board.slideTo(52, 44);
     board.slideTo(60, 52);
     auto sq_b_k = board.getPieceSqMask<PColor::B, PKind::pK>();
-    // std::cout << std::bitset<64>(sq_b_k) << std::endl;
 
     BOOST_REQUIRE_EQUAL(sq_b_p, 0xFF000000000000);
     BOOST_REQUIRE_EQUAL(sq_b_p_2, 0xFE010000000000);

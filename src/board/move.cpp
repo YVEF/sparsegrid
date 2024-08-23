@@ -37,7 +37,7 @@ brd::Move recognizeMove(SQ from, SQ to, const brd::Board& board) noexcept {
     auto distance = dist(from, to);
     auto kind = board.getKind(1ull << from);
     // ========= castling test
-    if (kind == PKind::pK && distance) {
+    if (kind == PKind::pK && distance == 2) {
         return brd::mkCastling(from, (from < to ? brd::CastlingType::C_SHORT : brd::CastlingType::C_LONG));
     }
 

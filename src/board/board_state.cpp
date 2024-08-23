@@ -37,9 +37,9 @@ struct MG<Color, PKind::pR> {
 BoardState::BoardState(brd::Board&& board) noexcept 
 : m_board(std::move(board)) {}
 
-template<PColor Color, PKind Kind> void movegen_recurs(Board& board, MoveList& mvList) {
-    board.movegen<Color, Kind>(mvList);
-}
+//template<PColor Color, PKind Kind> void movegen_recurs(Board& board, MoveList& mvList) {
+//    board.movegen<Color, Kind>(mvList);
+//}
 
 
 void BoardState::updateRookMeta_(PColor color, SQ from, SQ to, bool inc) noexcept {
@@ -135,6 +135,7 @@ void BoardState::registerMove(const Move& move) noexcept {
 }
 
 void BoardState::movegen(MoveList& mvList) noexcept {
+    if (gameover()) return;
     details::MG<PColor::W, PKind::pP>{}.run(m_board, mvList, *this);
 }
 

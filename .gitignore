@@ -4,4 +4,5 @@ cmake-build-Debug/
 compile_commands.json
 .idea/
 pytest/venv/
-
+pytest/*.so
+pytest/__pycache__/
