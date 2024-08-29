@@ -1,4 +1,5 @@
 #include <boost/python.hpp>
+#include "dbg/debugger.h"
 #include <iostream>
 #include "board/board_state.h"
 #include "common/options.h"
@@ -55,10 +56,10 @@ public:
 
 } // namespace interop
 
-interop::CDC* initCDC(bool color) noexcept {
-    common::Options opts{};
-    opts.EngineSide = static_cast<PColor>(color);
-    return new interop::CDC(brd::BoardState{brd::Board{}}, opts);
+interop::CDC* initCDC() noexcept {
+//    common::Options opts{};
+//    opts.EngineSide = static_cast<PColor>(color);
+    return new interop::CDC(brd::BoardState{brd::Board{}}, common::Options{});
 }
 
 auto convert_(const brd::Move& move) {
@@ -92,11 +93,14 @@ void freeCDC(interop::CDC* cdc) {
     delete cdc;
 }
 
+void displayBoard(interop::CDC* cdc) {
+    Debugger::printBB(cdc->m_state);
+}
+
 
 
 interop::MoveCollection* nextMoves(interop::CDC* cdc, bool color) {
     cdc->m_mvCollection.clearBag();
-    std::cout << "reset done\n";
 
     brd::MoveList mvlist{};
     if (color) cdc->m_state.movegenFor<PColor::W>(mvlist);
@@ -130,7 +134,6 @@ np::ndarray initNNInputLayer() {
     Py_intptr_t shape[1] = { sz };
     auto kk = np::dtype::get_builtin<double>();
     np::ndarray result = np::zeros(1, shape, kk);
-
     return result;
 }
 
@@ -180,12 +183,6 @@ BOOST_PYTHON_MODULE(sg_trainer_interop) {
         .add_property("size", python::make_function(&interop::MoveCollection::size))
         .def("getMove", &interop::MoveCollection::getMove, python::return_value_policy<python::return_by_value>());
 
-//    python::class_<interop::CDCMove, boost::noncopyable>(OBJECT_NAME(CDCMove), python::no_init)
-//        .add_property("fromSq", python::make_getter(&interop::CDCMove::from))
-//        .add_property("toSq", python::make_getter(&interop::CDCMove::to))
-//        .add_property("castling", python::make_getter(&interop::CDCMove::castling));
-
-
     python::def(OBJECT_NAME(initCDC), initCDC, python::return_value_policy<python::reference_existing_object>());
     python::def(OBJECT_NAME(nextMoves), nextMoves, python::return_value_policy<python::reference_existing_object>());
 
@@ -196,4 +193,5 @@ BOOST_PYTHON_MODULE(sg_trainer_interop) {
     python::def(OBJECT_NAME(fillInputLayer), fillInputLayer);
     python::def(OBJECT_NAME(initNNInputLayer), initNNInputLayer);
     python::def(OBJECT_NAME(recognizeMove), recognizeMove);
+    python::def(OBJECT_NAME(displayBoard), displayBoard);
 }

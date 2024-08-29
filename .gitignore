@@ -3,6 +3,7 @@ cmake-build-debug/
 cmake-build-Debug/
 compile_commands.json
 .idea/
-pytest/venv/
-pytest/*.so
-pytest/__pycache__/
+sgtrain/venv/
+sgtrain/*.so
+sgtrain/__pycache__/
+sgtrain/.idea/
