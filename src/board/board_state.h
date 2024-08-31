@@ -30,7 +30,7 @@ static_assert(sizeof(undoRec_) == 4, "undoRec_ packed into 32 bits");
 public:
     explicit BoardState(brd::Board&& board) noexcept;
     BoardState(const BoardState& rhs) noexcept;
-    BoardState(BoardState&&) = delete;
+    BoardState(BoardState&&) noexcept;
     BoardState& operator=(const BoardState&) = delete;
     BoardState& operator=(BoardState&&) = delete;
 

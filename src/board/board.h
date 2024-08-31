@@ -19,7 +19,7 @@ public:
     ~Board() noexcept = default;
     Board(const Board&) noexcept = default;
     Board(Board&&) noexcept = default;
-    Board& operator=(const Board&) noexcept;
+    Board& operator=(const Board&) noexcept = delete;
     Board& operator=(Board&&) = delete;
 
     template<PColor Color, PKind Kind>

@@ -78,8 +78,8 @@ search::str::Report MtdSearch<TExecutor>::pvMove(brd::BoardState& state) noexcep
 //
     search::str::Report report{};
 //    report.ok = true;
-//    report.pvMove = ctx.T1[0][0];
-//    report.ponder = ctx.T1[0][1];
+    report.pvMove = ctx.T1[0][0];
+    report.ponder = ctx.T1[0][1];
 
     m_stat.resetSingleSearch();
     return report;
@@ -89,12 +89,13 @@ search::str::Report MtdSearch<TExecutor>::pvMove(brd::BoardState& state) noexcep
 
 template <typename TExecutor>
 Score MtdSearch<TExecutor>::MTDF_(brd::BoardState& state, int16_t f, unsigned depth, detail::SearchContext& ctx) noexcept {
+    brd::Move bestMove{};
     int16_t lowerBound = -INF, upperBound = INF, beta = 0;
     while (lowerBound < upperBound && !m_tm.timeout()) {
         beta = (f == lowerBound) ? f+1 : f;
         if (depth <= 3 || true) {
-            auto [l, _] = AlphaBeta<false>(state, beta-1, beta, depth, true, ctx);
-            f = l;
+            auto [l, p] = AlphaBeta<false>(state, beta-1, beta, depth, true, ctx);
+            f = l, bestMove = p;
         }
 //        else {
 //            auto [l, _] = AlphaBeta<true>(state, beta-1, beta, depth, true, ctx);
@@ -107,14 +108,15 @@ Score MtdSearch<TExecutor>::MTDF_(brd::BoardState& state, int16_t f, unsigned de
         if (f < beta) upperBound = f;
         else lowerBound = f;
     }
+
     return f;
 }
 
 
-static Score checkmateScore(const brd::BoardState& state, PColor engineColor, const detail::SearchContext& ctx) noexcept {
+static Score checkmateScore(const brd::BoardState& state, PColor engineColor, unsigned relPly) noexcept {
     return state.checkmate(engineColor) ?
-        static_cast<Score>(-CHECKMATE_EVAL + ctx.relPly)
-        : static_cast<Score>(CHECKMATE_EVAL - ctx.relPly);
+        static_cast<Score>(-CHECKMATE_EVAL + relPly)
+        : static_cast<Score>(CHECKMATE_EVAL - relPly);
 }
 
 
@@ -136,11 +138,11 @@ template <typename TExecutor>
 template<bool PV>
 std::pair<Score, brd::Move> MtdSearch<TExecutor>::AlphaBeta(
         brd::BoardState& state, Score alpha, Score beta, unsigned depth,
-        bool even, detail::SearchContext& ctx) noexcept {
+        bool even, detail::SearchContext& ctx, bool mainThread) noexcept {
 
     if (state.gameover()) {
         if (state.draw()) return {0x00, NONE_MOVE};
-        return {checkmateScore(state, m_opts.EngineSide, ctx), NONE_MOVE};
+        return {checkmateScore(state, m_opts.EngineSide, ctx.relPly), NONE_MOVE};
     }
 
     ctx.incrementLevel();
@@ -171,92 +173,80 @@ std::pair<Score, brd::Move> MtdSearch<TExecutor>::AlphaBeta(
     Score bestScore = even ? -INF : INF;
     int boundType = 0x00;
     if (!depth) {
-        auto score = eval_(state, ctx);
+        auto score = eval_(state, ctx.relPly);
         ttdesc.write(score, EXACT_BND, 0, {});
         ctx.decrementLevel();
         return {score, NONE_MOVE};
     }
 
-    brd::MoveList mvList{};
-    if constexpr (PV) {
-        if (!ctx.T1[0][ctx.relPly].NAM())
-            mvList.push(ctx.T1[0][ctx.relPly]);
-        else mvList = movegen(even, state, m_opts.EngineSide);
-    }
-    else {
-        mvList = movegen(even, state, m_opts.EngineSide);
-    }
+    brd::MoveList mvList = movegen(even, state, m_opts.EngineSide);
+//    if constexpr (PV) {
+//        if (!ctx.T1[0][ctx.relPly].NAM())
+//            mvList.push(ctx.T1[0][ctx.relPly]);
+//        else mvList = movegen(even, state, m_opts.EngineSide);
+//    }
+//    else {
+//        mvList = movegen(even, state, m_opts.EngineSide);
+//    }
 
-    brd::Move bestMove{};
-    std::vector<std::future<std::pair<Score, brd::Move>>> awaiters{};
+
+#define NON_SPAWN_CONDITION(mt, ii, d) (!(mt) || (ii) == mvList.size()-1 || m_opts.Cores < 2 || (d) < 3)
+
+    brd::Move currMove{}, bestMove{};
     for (std::size_t i=0; i<mvList.size(); i++) {
-        const auto& move = mvList[i];
 
-//        state.registerMove(move);
+        const auto& move = mvList[i];
+        currMove = move;
 
         Score score{}; brd::Move prevMove{};
-        if (i > 0 && depth >= 2) {
-            auto future = m_executor.send(
-                [this, &mv = move,
-                 copy_state = state,
-                 alpha, beta, depth,
-                 even, &ctx](auto& tCtx) mutable {
-                    copy_state.registerMove(mv);
-                    auto res = AlphaBeta<PV>(copy_state, alpha, beta, depth-1, !even, ctx);
-                    // ignore undo
-                    return res;
-                });
 
-            awaiters.push_back(std::move(future));
-        }
-        else {
+        if (NON_SPAWN_CONDITION(mainThread, i, depth)) {
             state.registerMove(move);
-            auto [k1, k2] = AlphaBeta<PV>(state, alpha, beta, depth-1, !even, ctx);
+            auto [k1, k2] = AlphaBeta<PV>(state, alpha, beta, depth-1, !even, ctx, mainThread);
             score = k1, prevMove = k2;
             state.undo();
         }
-//        state.undo();
+        else {
+            i++;
+            const auto& fMove = mvList[i];
+            auto future = m_executor.send(
+                [this, &fMove,
+                    copy_state = state,
+                    alpha, beta, depth, even, ctx]
+                    (auto& tCtx) mutable {
+                    copy_state.registerMove(fMove);
+                    auto res = AlphaBeta<PV>(copy_state, alpha, beta, depth-1, !even, ctx, false);
+                    // skip undo because of copied state
+                    return res;
+                });
 
-
-        // todo: refactor!!!
-        for (auto& aw : awaiters) {
-            auto [s1, m1] = aw.get();
-
-            if (even) {
-                if (bestScore < s1) bestMove = move;
-                bestScore = std::max(bestScore, s1);
-
-                if (s1 > alpha) {
-                    alpha = s1;
-                    copyPV(ctx, move, m1);
-                }
-            }
-            else  {
-                if (bestScore > s1) bestMove = move;
-                bestScore = std::min(bestScore, s1);
-                if (s1 < beta) {
-                    beta = s1;
-                    copyPV(ctx, move, m1);
-                }
+            state.registerMove(move);
+            auto [k1, k2] = AlphaBeta<PV>(state, alpha, beta, depth-1, !even, ctx, mainThread);
+            score = k1, prevMove = k2;
+            state.undo();
+            auto [fScore, fMovePrev] = future.get();
+            if ((even && fScore > score) || (!even && fScore < score)) {
+                score = fScore;
+                prevMove = fMovePrev;
+                currMove = fMove;
             }
         }
 
-
         if (even) {
-            if (bestScore < score) bestMove = move;
+            if (bestScore < score) bestMove = currMove;
             bestScore = std::max(bestScore, score);
 
             if (score > alpha) {
                 alpha = score;
-                copyPV(ctx, move, prevMove);
+                copyPV(ctx, currMove, prevMove);
             }
         }
         else  {
-            if (bestScore > score) bestMove = move;
+            if (bestScore > score) bestMove = currMove;
             bestScore = std::min(bestScore, score);
             if (score < beta) {
                 beta = score;
-                copyPV(ctx, move, prevMove);
+                copyPV(ctx, currMove, prevMove);
             }
         }
 
@@ -274,12 +264,12 @@ std::pair<Score, brd::Move> MtdSearch<TExecutor>::AlphaBeta(
 }
 
 template <typename TExecutor>
-Score MtdSearch<TExecutor>::eval_(brd::BoardState& state, const detail::SearchContext& ctx) noexcept {
+Score MtdSearch<TExecutor>::eval_(brd::BoardState& state, unsigned relPly) noexcept {
     Score eval;
     if (state.checkmate(m_opts.EngineSide))
-        eval = static_cast<Score>(-CHECKMATE_EVAL + ctx.relPly);
+        eval = static_cast<Score>(-CHECKMATE_EVAL + relPly);
     else if (state.checkmate(invert(m_opts.EngineSide)))
-        eval = static_cast<Score>(CHECKMATE_EVAL - ctx.relPly);
+        eval = static_cast<Score>(CHECKMATE_EVAL - relPly);
     else
         eval = m_eval.evaluate(state);
 
@@ -289,6 +279,7 @@ Score MtdSearch<TExecutor>::eval_(brd::BoardState& state, const detail::SearchCo
 
 
 template class search::MtdSearch<exec::CallerThreadExecutor>;
+template class search::MtdSearch<exec::ThreadPoolExecutor>;
 
 
 

@@ -15,12 +15,16 @@ TTable::TTable(const common::Options& opts, common::Stat& stat) noexcept
 TTable::~TTable() { delete[] m_ttable; }
 
 
-// todo: key32 -> key16 is possible?
+// todo: is key32 -> key16 possible?
 auto TTable::probe(uint64_t key) noexcept -> TTDescriptor {
     std::size_t idx = key % m_size;
-    auto& chain = m_ttable[idx];
-    auto key32 = TTENTRY_KEY32(key);
+    TTChain& chain = m_ttable[idx];
+    bool occ;
+    do {
+        occ = false;
+    } while (chain.occupied.compare_exchange_weak(occ, true, std::memory_order_acq_rel));
 
+    auto key32 = TTENTRY_KEY32(key);
     TTEntry* ent = nullptr;
     uint8_t bound = 0x00;
 
@@ -40,8 +44,18 @@ auto TTable::probe(uint64_t key) noexcept -> TTDescriptor {
         ent->key = key32;
     }
 
-    return TTDescriptor(ent, m_age, bound);
+    return TTDescriptor(ent, m_age, bound, chain);
 }
+
+void TTDescriptor::write(Score score, int boundType, unsigned depth, const brd::Move& move) noexcept {
+    m_handle->score = score;
+    m_handle->age = m_age;
+    m_handle->bound = boundType;
+    m_handle->horizon = depth;
+    m_handle->hashMove = move;
+    m_chain.occupied.store(false, std::memory_order_release);
+}
+
 
 void TTable::incrementAge() noexcept {
     m_age++;

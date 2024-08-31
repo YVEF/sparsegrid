@@ -57,10 +57,10 @@ brd::Board::Board() noexcept {
     initKey(m_key, *this);
 }
 
-
-brd::Board& Board::operator=(const Board&) noexcept {
-    return *this;
-}
+//
+//brd::Board& Board::operator=(const Board&) noexcept {
+//    return *this;
+//}
 
 bool Board::empty(SQ sq) const noexcept {
     return emptyM(1ull << sq);

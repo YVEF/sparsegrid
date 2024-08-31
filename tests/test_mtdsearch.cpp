@@ -323,50 +323,44 @@ BOOST_FIXTURE_TEST_CASE(test_stop_searching_if_the_best_checkmate_has_been_found
 
 
 
-// /*
-//  *  x x x bKx x x x
-//  *  x x x x x x x x
-//  *  x x x x x x x x
-//  *  x x x x x x bQx
-//  *  x x x x x x x x
-//  *  x x x x x wBx x
-//  *  x x x x wPx x bP
-//  *  x x x x wKx x x
-//  */
-// BOOST_FIXTURE_TEST_CASE(test_b_endgame_6_steps_2_depth_5, MtdSearchFixture) {
-//     auto board = brd::board();
-//     preserve_only_positions(board, { W_KING_POS, B_KING_POS, B_PAWN_8_POS, W_PAWN_5_POS, W_BISHOP_1_POS, B_QUEEN_POS });
+/*
+*  . . . k . . . .
+*  . . . . . . . .
+*  . . . . . . . .
+*  . . . . . . q .
+*  . . . . . . . .
+*  . . . . . B . .
+*  . . . . P . . p
+*  . . . . K . . .
+*/
+BOOST_FIXTURE_TEST_CASE(test_b_endgame_6_steps_2_depth_5, MtdSearchTestFixture) {
+    brd::Board board{};
+    preserveOnlyPositions(board, {W_KING_POS, B_KING_POS, B_PAWN_8_POS, W_PAWN_5_POS, W_BISHOP_1_POS, B_QUEEN_POS});
+    brd::BoardState state(std::move(board));
+    state.registerMove(brd::mkMove(B_QUEEN_POS, SqNum::sqn_g5));
+    state.registerMove(brd::mkMove(B_KING_POS, B_KING_POS-1));
+    state.registerMove(brd::mkMove(W_BISHOP_1_POS, SqNum::sqn_f3));
+    state.registerMove(brd::mkMove(B_PAWN_8_POS, SqNum::sqn_h2));
 
-//     move_unsafe(board, B_QUEEN_POS, 67);
-//     move_unsafe(board, B_KING_POS, B_KING_POS-1);
-//     move_unsafe(board, W_BISHOP_1_POS, 46);
-//     move_unsafe(board, B_PAWN_8_POS, 38);
-//     brd::board_state state(Color::cB, std::move(board));
-//     state.set_next_move_player(Color::cB);
+    opts.MaxDepthPly = 5;
+    opts.EngineSide = PColor::B;
+    eval::Evaluator evalu{opts};
+    search::MtdSearch<exec::CallerThreadExecutor> searcher{opts, stat, tm, ttable, evalu};
+    auto res = searcher.pvMove(state);
 
-//     common::options opts;
-//     common::stat stat;
-//     search::ttable table(opts);
-//     opts.MaxDepthPly = 5;
-//     // eval::hce evaluator{};
-//     eval::newhce evaluator{"/home/iaroslav/src/sgnn_trainer/weights.csv"};
-//     search::mtdsearch<exec::caller_thread_executor> seeker(opts, stat, table, evaluator, tm_);
+    BOOST_CHECK_EQUAL(res.pvMove.from, SqNum::sqn_g5);
+    BOOST_CHECK_EQUAL(res.pvMove.to, SqNum::sqn_c1);
+    BOOST_CHECK_EQUAL(res.ponder.from, W_KING_POS);
+    BOOST_CHECK_EQUAL(res.ponder.to, SqNum::sqn_f2);
 
-//     auto move1 = seeker.advise_move(state).pv_move;
+    state.registerMove(res.pvMove);
+    state.registerMove(res.ponder);
 
-//     BOOST_REQUIRE(!move1.is_attack);
-//     BOOST_REQUIRE_EQUAL((int)move1.from, 67);
-//     BOOST_REQUIRE_EQUAL((int)move1.to, 23);
+    res = searcher.pvMove(state);
 
-//     state.register_move(move1);
-//     auto m = brd::mk_move(W_KING_POS, 36);
-//     state.register_move(m);
-//     auto move2 = seeker.advise_move(state).pv_move;
-
-//     BOOST_REQUIRE(!move2.is_attack);
-//     BOOST_REQUIRE_EQUAL((int)move2.from, 23);
-//     BOOST_REQUIRE_EQUAL((int)move2.to, 27);
-// }
+    BOOST_CHECK_EQUAL(res.pvMove.from, SqNum::sqn_c1);
+    BOOST_CHECK_EQUAL(res.pvMove.to, SqNum::sqn_g1);
+}
 
 
 BOOST_AUTO_TEST_SUITE_END()

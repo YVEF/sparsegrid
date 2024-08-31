@@ -8,23 +8,21 @@ namespace common { struct Options; }
 namespace exec {
 class CallerThreadExecutor {
 public:
-    explicit CallerThreadExecutor(const common::Options& opts) noexcept;
-    decltype(auto) send(auto&& task) noexcept;
+    explicit CallerThreadExecutor(const common::Options&) noexcept;
+    template<typename T>
+    auto send(T&& task) noexcept;
 };
 
 
-decltype(auto) CallerThreadExecutor::send(auto&& task) noexcept {
-#define EXEC_FWD_TASK(t) std::forward<decltype((t))>((t))
+template<typename T>
+auto CallerThreadExecutor::send(T&& task) noexcept {
+#define EXEC_FWD_TASK(t) std::forward<T>((t))
 
     auto tc = ThreadContext{};
     using return_type = decltype(std::invoke(EXEC_FWD_TASK(task), tc));
     std::promise<return_type> prom{};
     prom.set_value(std::invoke(EXEC_FWD_TASK(task), tc));
     return prom.get_future();
-}
-
-CallerThreadExecutor::CallerThreadExecutor(const common::Options& opts) noexcept {
-
 }
 
 

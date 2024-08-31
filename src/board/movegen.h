@@ -3,7 +3,7 @@
 #include <cstdint>
 #include "../core/defs.h"
 
-namespace brd { class Board; class BoardState; class MoveList; }
+namespace brd { class Board; class BoardState; struct MoveList; }
 
 namespace movegen {
 void init();

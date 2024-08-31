@@ -3,6 +3,7 @@
 #include <cstdint>
 #include "../core/defs.h"
 #include "../board/move.h"
+#include <atomic>
 
 namespace common { struct Options; struct Stat; }
 
@@ -27,13 +28,14 @@ struct TTEntry {
 static_assert(sizeof(TTEntry) == 12, "TTEntry layout");
 
 struct TTChain {
-    TTEntry entries[4];
+    TTEntry entries[3];
+    std::atomic_bool occupied{false};
 };
-static_assert(sizeof(TTChain) == 48, "Packer Move Size");
+static_assert(sizeof(TTChain) == 40, "Packer Move Size");
 
 struct TTDescriptor {
-    explicit TTDescriptor(TTEntry* hdl, uint8_t gen, uint8_t bound = 0) noexcept
-        : m_bound(bound), m_handle(hdl), m_age(gen) {}
+    explicit TTDescriptor(TTEntry* hdl, uint8_t gen, uint8_t bound, TTChain& chain) noexcept
+        : m_bound(bound), m_handle(hdl), m_age(gen), m_chain(chain) {}
 
     bool hit() const noexcept { return static_cast<bool>(m_bound); }
     void write(Score score, int boundType, unsigned depth, const brd::Move& move) noexcept;
@@ -44,15 +46,10 @@ private:
     uint8_t     m_bound;
     TTEntry*    m_handle;
     uint8_t     m_age;
+    TTChain&    m_chain;
 };
 
-inline void TTDescriptor::write(Score score, int boundType, unsigned depth, const brd::Move& move) noexcept {
-    m_handle->score = score;
-    m_handle->age = m_age;
-    m_handle->bound = boundType;
-    m_handle->horizon = depth;
-    m_handle->hashMove = move;
-}
+
 
 class TTable {
 public:

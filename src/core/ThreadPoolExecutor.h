@@ -9,6 +9,8 @@
 #include <future>
 #include "ThreadContext.h"
 #include <unordered_map>
+#include <iostream>
+#include "../dbg/sg_assert.h"
 
 
 namespace common { struct Options; }
@@ -18,37 +20,39 @@ class ThreadPoolExecutor {
 public:
     explicit ThreadPoolExecutor(const common::Options& opts) noexcept;
     ~ThreadPoolExecutor();
-    decltype(auto) send(auto&& task) noexcept;
+    template<typename T>
+    auto send(T&& task) noexcept;
 
 private:
 //    const common::Options& m_opts;
     std::mutex m_mtx;
-    std::queue<std::packaged_task<void(ThreadContext&)>> m_jobs;
+//    std::queue<std::packaged_task<void(ThreadContext&)>> m_jobs;
+    std::queue<std::function<void(ThreadContext&)>> m_jobs;
     std::vector<std::jthread> m_workers;
     std::vector<ThreadContext> m_contexts;
 //    std::unordered_map<unsigned, unsigned> tidIdMap;
     std::condition_variable m_cv;
-    std::atomic_bool m_active;
+    std::atomic_bool m_active{true};
 
     void worker_loop_(ThreadContext& ctx) noexcept;
 };
 
-decltype(auto) ThreadPoolExecutor::send(auto&& task) noexcept {
-    using return_type = decltype(std::invoke(task, std::declval<ThreadContext&>()));
+template<typename T>
+auto ThreadPoolExecutor::send(T&& task) noexcept {
+    SG_ASSERT(!m_workers.empty());
 
-    auto ret_prom = std::make_shared<std::promise<return_type>>();
-    auto future = ret_prom.get_future();
-
-    std::packaged_task<void()> ptask(
-        [prom = std::move(ret_prom),
-         task = std::forward<decltype(task)>(task)](auto& ctx) {
-        auto res = std::invoke(std::forward<decltype(task)>(task), ctx);
-        prom->set_value(res);
-    });
+    using return_type = decltype(std::invoke(std::forward<T>(task), std::declval<ThreadContext&>()));
+    auto prom = std::make_shared<std::promise<return_type>>();
+    auto future = prom->get_future();
+    std::function<void(ThreadContext&)> fnc(
+        [prom = std::move(prom),
+            task = std::forward<T>(task)](auto& tCtx) mutable {
+            prom->set_value(std::invoke(std::forward<T>(task), tCtx));
+        });
 
     {
         std::lock_guard lock(m_mtx);
-        m_jobs.emplace(std::move(ptask));
+        m_jobs.emplace(std::move(fnc));
     }
     m_cv.notify_one();
     return future;

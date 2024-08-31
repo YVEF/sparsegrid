@@ -14,10 +14,9 @@ namespace python = boost::python;
 
 namespace interop {
 class CDC;
-void welcome(interop::CDC* cdc) {
-    std::cout << "welcome\n";
+void welcome(interop::CDC*) {
+    std::cout << "Welcome to SgTrain Interop\n";
 }
-
 
 struct CDCMove {
     uint8_t from;

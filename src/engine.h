@@ -12,7 +12,7 @@
 #include "search/mtdsearch.h"
 
 namespace search { template<typename> class MtdSearch; }
-namespace common { class Stat; }
+namespace common { struct Stat; }
 namespace eval { class Evaluator; }
 namespace uci { class Fen; }
 

@@ -4,5 +4,6 @@
 
 
 namespace exec {
-
+CallerThreadExecutor::CallerThreadExecutor(const common::Options&) noexcept {
+}
 }

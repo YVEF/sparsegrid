@@ -6,14 +6,15 @@ include_directories(
 
 
 set(TESTS_SRC
-    test_utils.cpp
-    test_board.cpp
-    test_board_state.cpp
-    test_undo.cpp
-    test_hashing.cpp
-    test_mtdsearch.cpp
-    test_fen.cpp
-	test_polyglot.cpp
+    	test_utils.cpp
+    	test_board.cpp
+    	test_board_state.cpp
+    	test_undo.cpp
+    	test_hashing.cpp
+    	test_mtdsearch.cpp
+    	test_fen.cpp
+		test_polyglot.cpp
+		test_multithreading.cpp
 )
 
 

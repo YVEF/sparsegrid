@@ -100,6 +100,6 @@ target_include_directories(${INTEROP_PROJ} PRIVATE
 message(STATUS "!!@!!@@   " ${Python3_NumPy_INCLUDE_DIRS})
 set_target_properties(${INTEROP_PROJ} PROPERTIES PREFIX "")
 add_custom_command(TARGET ${INTEROP_PROJ} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:${INTEROP_PROJ}> ${CMAKE_SOURCE_DIR}/pytest/${INTEROP_PROJ}.so
+        COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:${INTEROP_PROJ}> ${CMAKE_SOURCE_DIR}/sgtrain/${INTEROP_PROJ}.so
 )
 
