@@ -53,7 +53,7 @@ class Agent(ABC):
 
 
 class GamesDbAgent(Agent):
-    def __init__(self, color, lr_=0.01):  # todo: color do not do anything
+    def __init__(self, color, lr_=0.001):  # todo: color do not do anything
         super().__init__(color)
         self._optimizer = torch.optim.Adam(self._model.parameters(), lr=lr_, weight_decay=0.1)
 
@@ -69,32 +69,24 @@ class GamesDbAgent(Agent):
         sgt.fillInputLayer(self._cdc, self._in_layer)
         pred = self._model(torch.from_numpy(self._in_layer))
         self._predictions.append(pred)
-        # if pred.item() == 0.:
-        #     print("in layer", self._in_layer)
-        #     print("===")
-        #     for name, param in self._model.named_parameters():
-        #         print(name, param.data)
-        #
-        #     print("======================!!!!!!!!!!===============!!!!!!!!!!!!")
-        #     kk = self._model.forward2(torch.from_numpy(self._in_layer))
-        #     input()
-        # self._predictions.append(pred)
-
 
     def step(self, reward):
         rewards = self._accumulate_reward(reward)
         assert len(rewards) == len(self._predictions)
 
+        epsilon = 1e-11
         loss_error = 0.
         loss = torch.tensor([0.], requires_grad=True).double()
         for r, p in zip(rewards, self._predictions):
-            loss_error += (reward - p.item())
-            loss += (-r * torch.log(p))
+            loss_error += (r - p.item())
+            loss += (-r * torch.log(torch.clamp(p, min=epsilon)))
+            # loss += (-r * p)
             if torch.isinf(loss).any():
                 print("loss:", loss)
                 print("r:", reward, "p:", p, "log(p)", torch.log(p))
                 input()
 
+        # loss = torch.log(loss)
         self._optimizer.zero_grad()
         loss.backward()
         self._optimizer.step()

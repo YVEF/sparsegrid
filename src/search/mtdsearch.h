@@ -40,6 +40,7 @@ private:
     TTable&             m_ttable;
     TimeManager&        m_tm;
     eval::Evaluator&    m_eval;
+    TExecutor           m_executor;
     // const book*                 m_book;
     // const tracer<TExecutor>*    m_tracer;
 

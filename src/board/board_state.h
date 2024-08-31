@@ -28,8 +28,13 @@ struct undoRec_ {
 static_assert(sizeof(undoRec_) == 4, "undoRec_ packed into 32 bits");
 
 public:
-    typedef std::deque<undoRec_> undoList_t;
     explicit BoardState(brd::Board&& board) noexcept;
+    BoardState(const BoardState& rhs) noexcept;
+    BoardState(BoardState&&) = delete;
+    BoardState& operator=(const BoardState&) = delete;
+    BoardState& operator=(BoardState&&) = delete;
+
+    typedef std::deque<undoRec_> undoList_t;
     void movegen(MoveList& mvList) noexcept;
     template<PColor Color, PKind Kind> void movegenFor(MoveList& mvList) noexcept;
     template<PColor Color> void movegenFor(MoveList& mvList) const noexcept;
@@ -90,8 +95,7 @@ public:
     // ========= PG, FEN =========
 
 private:
-    brd::Board m_board;
-
+    brd::Board              m_board;
     /** Move records list for undo operations and previous move analyzing */
     mutable undoList_t      m_undoList;
     uint8_t                 m_rule50Ply = 0;

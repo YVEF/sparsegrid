@@ -84,7 +84,7 @@ struct MoveList {
     void push(Move move) noexcept;
     Move pop() noexcept;
     std::size_t size() const noexcept;
-    const Move& operator[](int i) noexcept;
+    const Move& operator[](std::size_t i) noexcept;
 
 private:
     std::size_t m_ptr = 0;
@@ -95,7 +95,7 @@ inline std::size_t MoveList::size() const noexcept {
     return m_ptr;
 }
 
-inline const Move& MoveList::operator[](int i) noexcept {
+inline const Move& MoveList::operator[](std::size_t i) noexcept {
     return m_data[i];
 }
 

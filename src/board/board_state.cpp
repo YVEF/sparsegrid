@@ -37,10 +37,16 @@ struct MG<Color, PKind::pR> {
 BoardState::BoardState(brd::Board&& board) noexcept 
 : m_board(std::move(board)) {}
 
-//template<PColor Color, PKind Kind> void movegen_recurs(Board& board, MoveList& mvList) {
-//    board.movegen<Color, Kind>(mvList);
-//}
-
+BoardState::BoardState(const brd::BoardState& rhs) noexcept
+: m_board(rhs.m_board), m_undoList(rhs.m_undoList), m_rule50Ply(rhs.m_rule50Ply), m_wKingMoves(rhs.m_wKingMoves),
+m_bKingMoves(rhs.m_bKingMoves), m_wKingExists(rhs.m_wKingExists), m_bKingExists(rhs.m_bKingExists),
+m_lwRp(rhs.m_lwRp), m_lbRp(rhs.m_lbRp), m_lwRMoves(rhs.m_lwRMoves), m_rwRMoves(rhs.m_rwRMoves),
+m_lbRMoves(rhs.m_lbRMoves), m_rbRMoves(rhs.m_rbRMoves), m_fenEnpassMove(rhs.m_fenEnpassMove),
+m_fenNextPlayer(rhs.m_fenNextPlayer), m_buildFromFen(rhs.m_buildFromFen), m_fenCastlingMask(rhs.m_fenCastlingMask)
+{
+    m_nonPawnMaterial[0] = rhs.m_nonPawnMaterial[0];
+    m_nonPawnMaterial[1] = rhs.m_nonPawnMaterial[1];
+}
 
 void BoardState::updateRookMeta_(PColor color, SQ from, SQ to, bool inc) noexcept {
     int coeff = inc ? 1 : -1;

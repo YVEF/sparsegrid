@@ -1,5 +1,4 @@
 from time import sleep
-import mct
 import chess
 import chess.pgn
 import sg_trainer_interop as sgt
@@ -42,7 +41,7 @@ def get_pgn_from_dir(dir):
     return pgn_files
 
 
-def start(max_epochs, report_epochs):
+def start(pgn_dir, max_epochs, report_epochs):
     agent = agents.GamesDbAgent(True)
     agent.restore_state()
 
@@ -50,7 +49,7 @@ def start(max_epochs, report_epochs):
     plot_epoch_error = 0.
     plot_epoch_errors = []
     epoch = 0
-    pgn_files = get_pgn_from_dir("/home/iaroslav/Downloads/csvn")
+    pgn_files = get_pgn_from_dir(pgn_dir)
     while epoch < max_epochs:
         game_count = 0
         for pgn_file in pgn_files:
@@ -58,8 +57,12 @@ def start(max_epochs, report_epochs):
             pgn = open(pgn_file)
             # pgn = open("/home/iaroslav/Downloads/csvn/A01.commented.[15384].pgn")
             game = chess.pgn.read_game(pgn)
+            m = 1
             for i in range(0, 2):
                 while game is not None:
+                    print("m:", m)
+                    m += 1
+                    # print(game.headers)
                     result = get_result(game.headers["Result"])
                     if result == DRAW:
                         game = chess.pgn.read_game(pgn)

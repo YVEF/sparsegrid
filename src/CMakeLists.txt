@@ -28,9 +28,8 @@ set(DBG_UTILS_SRC
 
 set(CORE_SRC 
         core/defs.cpp
-        core/caller_thread_executor.cpp
-        # core/sg_intrin.cpp
-        # core/thread_pool_executor.cpp
+        core/CallerThreadExecutor.cpp
+        core/ThreadPoolExecutor.cpp
 )
 
 set(UCI_SRC 
@@ -48,7 +47,7 @@ set(ENGINE_SRC
  )
 
 set(COMMON_SRC
-    common/stat.cpp
+        common/stat.cpp
 )
 
 ## === DEFS
