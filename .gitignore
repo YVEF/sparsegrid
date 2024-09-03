@@ -2,6 +2,7 @@
 cmake-build-debug/
 cmake-build-release/
 cmake-build-Debug/
+.cache/
 compile_commands.json
 .idea/
 sgtrain/.venv/
