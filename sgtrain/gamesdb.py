@@ -2,6 +2,7 @@ from time import sleep
 import chess
 import chess.pgn
 import sg_trainer_interop as sgt
+import torch
 import agents
 import matplotlib.pyplot as plt
 import numpy as np
@@ -13,29 +14,21 @@ DRAW = 0x00
 WIN = 1.
 LOSE = -1.
 
+# torch.manual_seed(12)
+
 
 def get_result(res):
     if res == "1-0":
-        return 1.
+        return WIN
     if res == "0-1":
-        return 1e-10
+        return LOSE
     return DRAW
 
 
-def depend_result(color, res):
-    if color:
-        return res
-    return LOSE if res == WIN else WIN;
-
-
 def run_dbgame(game, agent):
-    board = game.board()
     i = 0 if agent.color() else 1
     for pgn_move in game.mainline_moves():
         agent.make_move_uci(pgn_move.from_square, pgn_move.to_square)
-        board.push(pgn_move)
-        # agent.evaluate()
-        # agent.switch_side()
         if i % 2 == 0:
             agent.evaluate()
         i += 1
@@ -93,9 +86,7 @@ def start(pgn_dir, max_epochs, report_epochs):
                     for i in range(0, 2):
                         run_dbgame(game, agent)
                         loss_err = agent.step(result if agent.color() else -result)
-                        # loss_err = agent.step(depend_result(agent.color(), result))
                         plot_epoch_error += loss_err
-                        # agent.reset()
                         agent.switch_side()
                         games_processed += 1
                         bar()

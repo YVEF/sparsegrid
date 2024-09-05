@@ -34,38 +34,47 @@ struct MG<Color, PKind::pR> {
 };
 } // details
 
-//static PColor getNextPlayerColor(const brd::BoardState& state) noexcept;
+static void switchMoveSideNN(BoardState::nnLayer_t& nn, PColor moveColor, bool undo) noexcept;
+
+static double getPieceId(PColor color, PKind kind) noexcept {
+    int a = static_cast<int>(kind);
+    return color ? static_cast<double>(a) : static_cast<double>(a + 6);
+}
 
 template<std::size_t I>
-static void fillBits(auto& input, const auto& rawBrd) noexcept {
+static void fillBits(auto& input, const auto& rawBrd, const brd::Board& board) noexcept {
     auto brdPart = std::get<I>(rawBrd);
     constexpr auto start = I*64;
     for (SQ i=0; i<64; i++) {
-        if ((1ull << i) & brdPart) input[start+i] = 1.0;
+        BB mask = 1ull << i;
+        if (mask & brdPart) {
+            if constexpr (I == 0) {
+                input[start+i] = 1.0;
+            }
+            else {
+                input[start+i] = getPieceId(board.getColor(mask), board.getKind(mask));
+            }
+        }
     }
 }
 
-static void rebuildNNLayer(const auto& state,
-                           auto& input,
-                           const auto& rawBrd) noexcept {
-
+void rebuildNNLayer(const BoardState& state, BoardState::nnLayer_t& input) noexcept {
+    const auto& rawBrd = state.getBoard().getRawBoard();
     input.fill(0.0);
-    fillBits<0>(input, rawBrd);
-    fillBits<1>(input, rawBrd);
-    fillBits<2>(input, rawBrd);
-    fillBits<3>(input, rawBrd);
-    input[256] = 1.0;
+    fillBits<0>(input, rawBrd, state.getBoard());
+    fillBits<1>(input, rawBrd, state.getBoard());
+    fillBits<2>(input, rawBrd, state.getBoard());
+    fillBits<3>(input, rawBrd, state.getBoard());
 
-//    if (getNextPlayerColor(state))
-//        input[256] = 1.0;
-//    else
-//        input[319] = 1.0;
+    if (getNextPlayerColor(state))
+        input[256] = input[287] = 1.0;
+    else
+        input[288] = input[319] = 1.0;
 }
 
 BoardState::BoardState(brd::Board&& board) noexcept 
 : m_board(board) {
-    auto rawBrd = m_board.getRawBoard();
-    rebuildNNLayer(*this, m_nnLayer, rawBrd);
+    rebuildNNLayer(*this, m_nnLayer);
 }
 
 
@@ -190,20 +199,17 @@ void BoardState::registerMove(const Move& move) noexcept {
 }
 
 
-void switchMoveSideNN(BoardState::nnLayer_t& nn, PColor moveColor, bool undo) {
-    if ((moveColor && !undo) || (!moveColor && undo)) {
-        nn[319] = 1.0;
-        nn[256] = 0.0;
-    }
-    else {
-        nn[319] = 0.0;
-        nn[256] = 1.0;
-    }
+static void switchMoveSideNN(BoardState::nnLayer_t& nn, PColor moveColor, bool undo) noexcept {
+    double f = 1.0, s = 0.0;
+    if ((moveColor && !undo) || (!moveColor && undo))
+        std::swap(f, s);
+
+    nn[256] = nn[287] = f;
+    nn[288] = nn[319] = s;
 }
 
 void BoardState::updateNN_(brd::BoardState::undoRec_ rec, SQ newRPos, SQ rPos, SQ newKPos, SQ enpassPos, bool undo) noexcept {
-    auto rawBoard = m_board.getRawBoard();
-
+    auto mvColor = static_cast<PColor>(rec.moveColor);
     if (rec.castling) {
         SQ kPos = rec.from;
         if (undo) {
@@ -212,12 +218,12 @@ void BoardState::updateNN_(brd::BoardState::undoRec_ rec, SQ newRPos, SQ rPos, S
         }
 
         m_nnLayer[64 + kPos] = m_nnLayer[192 + kPos] = 0.0;
-        m_nnLayer[64 + newKPos] = m_nnLayer[192 + newKPos] = 1.0;
+        m_nnLayer[64 + newKPos] = m_nnLayer[192 + newKPos] = getPieceId(mvColor, PKind::pK);
 
         m_nnLayer[192 + rPos] = 0.0;
-        m_nnLayer[192 + newRPos] = 1.0;
+        m_nnLayer[192 + newRPos] = getPieceId(mvColor, PKind::pR);;
 
-        if (!rec.moveColor) {
+        if (!mvColor) {
             m_nnLayer[kPos] = m_nnLayer[rPos] = 0.0;
             m_nnLayer[newKPos] = m_nnLayer[newRPos] = 1.0;
         }
@@ -226,90 +232,94 @@ void BoardState::updateNN_(brd::BoardState::undoRec_ rec, SQ newRPos, SQ rPos, S
     }
 
     SQ from = rec.from, to = rec.to;
-    if (rec.capturedKind != PKind::None) {
-        double zero = undo ? 1.0 : 0.0;
+    auto ck = static_cast<PKind>(rec.capturedKind);
 
-        auto ck = static_cast<PKind>(rec.capturedKind);
+    if (ck != PKind::None) {
+        double flag = undo ? getPieceId(invert(mvColor), ck) : 0.0;
         switch (ck) {
             case PKind::pP: {
-                if (rec.isEnpass) m_nnLayer[128 + enpassPos] = zero;
-                else m_nnLayer[128 + to] = zero;
+                if (rec.isEnpass) m_nnLayer[128 + enpassPos] = flag;
+                else m_nnLayer[128 + to] = flag;
                 break;
             }
             case PKind::pK: {
-                m_nnLayer[64 + to] = m_nnLayer[192 + to] = zero;
+                m_nnLayer[64 + to] = m_nnLayer[192 + to] = flag;
                 break;
             }
             case PKind::pR: {
-                m_nnLayer[192 + to] = zero;
+                m_nnLayer[192 + to] = flag;
                 break;
             }
             case PKind::pQ: {
-                m_nnLayer[128 + to] = m_nnLayer[192 + to] = zero;
+                m_nnLayer[128 + to] = m_nnLayer[192 + to] = flag;
                 break;
             }
             case PKind::pB: {
-                m_nnLayer[64 + to] = m_nnLayer[128 + to] = zero;
+                m_nnLayer[64 + to] = m_nnLayer[128 + to] = flag;
                 break;
             }
             case PKind::pN: {
-                m_nnLayer[64 + to] = zero;
+                m_nnLayer[64 + to] = flag;
                 break;
             }
+            case PKind::None: break;
         }
-        if (rec.moveColor) {
+        if (mvColor) {
             // black was killed
             if (rec.isEnpass) {
                 SG_ASSERT(enpassPos);
                 SG_ASSERT((undo && m_nnLayer[enpassPos] == 0.) || (!undo && m_nnLayer[enpassPos] == 1.));
-                int a = 1;
-                m_nnLayer[enpassPos] = zero;
+                m_nnLayer[enpassPos] = undo ? 1.0 : 0.0;
             }
-            else m_nnLayer[to] = zero;
+            else m_nnLayer[to] = undo ? 1.0 : 0.0;
         }
     }
 
     if (undo) std::swap(from, to);
 
-    switch (static_cast<PKind>(rec.moveKind)) {
+    auto mvKind = static_cast<PKind>(rec.moveKind);
+    auto pieceId = getPieceId(mvColor, mvKind);
+    SG_ASSERT(mvKind != PKind::None)
+
+    switch (mvKind) {
         case PKind::pP: {
             m_nnLayer[128 + from] = 0.0;
-            m_nnLayer[128 + to] = 1.0;
+            m_nnLayer[128 + to] = pieceId;
             break;
         }
         case PKind::pK: {
             m_nnLayer[64 + from] = m_nnLayer[192 + from] = 0.0;
-            m_nnLayer[64 + to] = m_nnLayer[192 + to] = 1.0;
+            m_nnLayer[64 + to] = m_nnLayer[192 + to] = pieceId;
             break;
         }
         case PKind::pR: {
             m_nnLayer[192 + from] = 0.0;
-            m_nnLayer[192 + to] = 1.0;
+            m_nnLayer[192 + to] = pieceId;
             break;
         }
         case PKind::pQ: {
             m_nnLayer[128 + from] = m_nnLayer[192 + from] = 0.0;
-            m_nnLayer[128 + to] = m_nnLayer[192 + to] = 1.0;
+            m_nnLayer[128 + to] = m_nnLayer[192 + to] = pieceId;
             break;
         }
         case PKind::pB: {
             m_nnLayer[64 + from] = m_nnLayer[128 + from] = 0.0;
-            m_nnLayer[64 + to] = m_nnLayer[128 + to] = 1.0;
+            m_nnLayer[64 + to] = m_nnLayer[128 + to] = pieceId;
             break;
         }
         case PKind::pN: {
             m_nnLayer[64 + from] = 0.0;
-            m_nnLayer[64 + to] = 1.0;
+            m_nnLayer[64 + to] = pieceId;
             break;
         }
+        default: break;
     }
 
     if (rec.promo) {
-//        m_nnLayer[128 + rec.to] = 0.0;
-        m_nnLayer[128 + to] = m_nnLayer[192 + to] = undo ? 0.0 : 1.0;
+        m_nnLayer[128 + to] = m_nnLayer[192 + to] = undo ? 0.0 : getPieceId(mvColor, PKind::pQ);
     }
 
-    if (!rec.moveColor) {
+    if (!mvColor) {
         m_nnLayer[from] = 0.0;
         m_nnLayer[to] = 1.0;
     }

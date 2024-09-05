@@ -20,17 +20,15 @@ template<typename T>
 auto CallerThreadExecutor::send(T&& task) noexcept {
 #define EXEC_FWD_TASK(t) std::forward<T>((t))
 
-    auto tc = ThreadContext{};
-    using return_type = decltype(std::invoke(EXEC_FWD_TASK(task), tc));
+    using return_type = decltype(std::invoke(EXEC_FWD_TASK(task)));
     std::promise<return_type> prom{};
-    prom.set_value(std::invoke(EXEC_FWD_TASK(task), tc));
+    prom.set_value(std::invoke(EXEC_FWD_TASK(task)));
     return prom.get_future();
 }
 
 template<typename T>
 auto CallerThreadExecutor::try_send(T&& task) noexcept {
-    auto tc = ThreadContext{};
-    using return_type = decltype(std::invoke(std::forward<T>(task), tc));
+    using return_type = decltype(std::invoke(std::forward<T>(task)));
     std::optional<std::future<return_type>> result{send(std::forward<T>(task))};
     return result;
 }

@@ -39,14 +39,13 @@ public:
 
 private:
     std::mutex m_mtx;
-    std::queue<std::function<void(ThreadContext&)>> m_jobs;
+    std::queue<std::function<void()>> m_jobs;
     std::vector<std::jthread> m_workers;
-    std::vector<ThreadContext> m_contexts;
     std::condition_variable m_cv;
     std::atomic_bool m_active{true};
+    std::atomic_uint m_nonCompletedJobs{0};
 
-    void worker_loop_(ThreadContext& ctx) noexcept;
-
+    void worker_loop_() noexcept;
     template<typename T> bool send_(T&& task, auto& future, bool restricted = false) noexcept;
 };
 
@@ -56,24 +55,27 @@ bool ThreadPoolExecutor::send_(T&& task, auto& future, bool restricted) noexcept
     SG_ASSERT(!m_workers.empty());
 
     // race condition actually happens here
-    if (restricted && m_jobs.size() >= m_workers.size())
+    if (restricted && m_nonCompletedJobs.load(std::memory_order_acquire) >= m_workers.size())
         return false;
 
-    using return_type = decltype(std::invoke(std::forward<T>(task), std::declval<ThreadContext&>()));
+    using return_type = decltype(std::invoke(std::forward<T>(task)));
     auto prom = std::make_shared<std::promise<return_type>>();
     future = prom->get_future();
-    std::function<void(ThreadContext&)> fnc(
+    std::function<void()> fnc(
         [prom = std::move(prom),
-            task = std::forward<T>(task)](auto& tCtx) mutable {
-            prom->set_value(std::invoke(std::forward<T>(task), tCtx));
+            task = std::forward<T>(task),
+            &ncj = m_nonCompletedJobs]() mutable {
+            prom->set_value(std::invoke(std::forward<T>(task)));
+            ncj.fetch_sub(1);
         });
 
     {
         std::lock_guard lock(m_mtx);
-        if (restricted && m_jobs.size() >= m_workers.size())
+        if (restricted && m_nonCompletedJobs.load(std::memory_order_relaxed) >= m_workers.size())
             return false;
 
         m_jobs.emplace(std::move(fnc));
+        m_nonCompletedJobs.fetch_add(1);
     }
     m_cv.notify_one();
     return true;
@@ -82,7 +84,7 @@ bool ThreadPoolExecutor::send_(T&& task, auto& future, bool restricted) noexcept
 
 template<typename T>
 auto ThreadPoolExecutor::send(T&& task) noexcept {
-    using return_type = decltype(std::invoke(std::forward<T>(task), std::declval<ThreadContext&>()));
+    using return_type = decltype(std::invoke(std::forward<T>(task)));
     std::future<return_type> future;
     send_(std::forward<T>(task), future, false);
     return future;
@@ -90,7 +92,7 @@ auto ThreadPoolExecutor::send(T&& task) noexcept {
 
 template<typename T>
 auto ThreadPoolExecutor::try_send(T&& task) noexcept -> std::optional<decltype(send(std::forward<T>(task)))> {
-    using return_type = decltype(std::invoke(std::forward<T>(task), std::declval<ThreadContext&>()));
+    using return_type = decltype(std::invoke(std::forward<T>(task)));
     std::future<return_type> future{};
     if (send_(std::forward<T>(task), future, true)) {
         return std::optional{std::move(future)};

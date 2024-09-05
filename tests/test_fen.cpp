@@ -1,4 +1,6 @@
 #include "board/movegen.h"
+#include <Eigen/Dense>
+#include <unsupported/Eigen/CXX11/Tensor>
 #include <board/board.h>
 #include <board/board_state.h>
 #include <boost/test/unit_test.hpp>
@@ -66,6 +68,5 @@ BOOST_AUTO_TEST_CASE(test_position_1) {
     // ***** ASSERT
     assertFenString(input, state);
 }
-
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -20,8 +20,6 @@ class MCTNode:
 
 # without mct at the moment
 def run_game(agent: agents.SelfPlayAgent, opponent: agents.SelfPlayAgent, mct: MCTNode):
-    result = 0
-    # i = 0 if agent.color() else 1
     players = [agent, opponent]
     if opponent.color():
         players = list(reversed(players))
@@ -33,17 +31,13 @@ def run_game(agent: agents.SelfPlayAgent, opponent: agents.SelfPlayAgent, mct: M
         mv = curr_pl.get_next_move()
         if mv is None:
             if curr_pl.is_draw():
-                return 0
-            result = -1 if curr_pl.color() == agent.color() else 1
-            break
+                return -0.5
+            return -1 if curr_pl.color() == agent.color() else 1
 
-        # print("move:", mv.fromSq, mv.toSq, "c:", curr_pl.color())
         agent.make_move(mv)
         opponent.make_move(mv)
         if curr_pl.color() == agent.color():
             agent.evaluate()
-
-    return result
 
 
 def start(epochs, report_epochs):
@@ -57,11 +51,10 @@ def start(epochs, report_epochs):
 
         mct = MCTNode(None, True)
         result = run_game(agent, opponent, mct)  # 1 - agent win, -1 - agent lose, 0 - draw
-        print(f"game result:{result}")
         err = agent.step(result)
         agent.checkpoint()
         agent.reset()
-        print(f"err:{err}")
+        print(f"epoch:{ep} loss:{err}")
 
 
 

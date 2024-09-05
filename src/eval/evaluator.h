@@ -35,7 +35,8 @@ class SGNN;
 class NNEvaluator : public Evaluator {
 public:
     explicit NNEvaluator(const common::Options& opts);
-    Score evaluate(const brd::BoardState&) noexcept;
+    Score evaluate(const brd::BoardState&) noexcept override;
+    double evaluateRaw(const brd::BoardState&) noexcept;
     ~NNEvaluator();
 
 private:

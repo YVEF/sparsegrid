@@ -19,43 +19,54 @@ message(STATUS "Using toolchain file: ${CMAKE_TOOLCHAIN_FILE}")
 add_definitions(-DDEV_ENV)
 add_definitions(-DTEST_ENV)
 
+message(STATUS "!!!!!11-------!!!   " ${CMAKE_CXX_COMPILER_ID})
 
 add_compile_options(-Wall -Wpedantic -Wextra -mavx2)
+
 if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
     message(STATUS "Debug build type")
-    add_compile_options(-g -O0)
-#     message("Debug build type")
-#     add_compile_options(-g -O0
-#         -fsanitize=address
-#         -fno-omit-frame-pointer
-#         -fsanitize-address-destructor=global 
-#         -fsanitize-address-globals-dead-stripping 
-#         -fsanitize-address-outline-instrumentation
-#         -fsanitize-address-use-after-scope
-#         -fsanitize-link-c++-runtime
-#         -fsanitize-stats
-#         )
-#     add_link_options(-fuse-ld=lld -fsanitize=address)
+    if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+         add_compile_options(-g -O0
+             -fsanitize=address
+             -fno-omit-frame-pointer
+             -fsanitize-address-destructor=global
+             -fsanitize-address-globals-dead-stripping
+             -fsanitize-address-outline-instrumentation
+             -fsanitize-address-use-after-scope
+             -fsanitize-link-c++-runtime
+             -fsanitize-stats
+             )
+         add_link_options(-fuse-ld=lld -fsanitize=address)
+    else ()
+        add_compile_options(-g -O0
+#                -fsanitize=address
+        )
+#        add_link_options(-fsanitize=address -static-libasan)
+    endif ()
+    add_definitions(-DDEBUG)
 else()
     message(STATUS "Release build type")
-    add_compile_options(-O3
-        -finline-functions
-        -funsafe-math-optimizations
-    )
-#     add_compile_options(-O3 
-#         -ffast-math
-#         -flto=full
-#         -finline-functions
-#         -funsafe-math-optimizations
-#         )
-#     add_link_options(-flto=full)
-
+    if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+         add_compile_options(-O3
+             -ffast-math
+             -flto=full
+             -finline-functions
+             -funsafe-math-optimizations
+             )
+         add_link_options(-flto=full)
+    else ()
+        add_compile_options(-O3
+            -finline-functions
+            -funsafe-math-optimizations
+            -flto
+        )
+    endif ()
     add_definitions(-DNDEBUG)
-    add_compile_options(-flto)
 endif()
-
 
 enable_testing()
 add_subdirectory(src)
 add_subdirectory(tests)
 add_subdirectory(perft)
+
+

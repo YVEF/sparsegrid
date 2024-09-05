@@ -1,0 +1,2 @@
+sgtrain/sgadamo.pt filter=lfs diff=lfs merge=lfs -text
+sgtrain/sgsgdo.pt filter=lfs diff=lfs merge=lfs -text

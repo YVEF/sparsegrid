@@ -22,7 +22,7 @@ static int convertPiece(PKind kind, PColor color) noexcept {
     return res + (int)color;
 }
 
-static uint64_t bldTurnHash(const brd::BoardState& state, const common::Options& opts) noexcept {
+static uint64_t bldTurnHash(const brd::BoardState& state) noexcept {
     if (getNextPlayerColor(state)) return poly_keys[780];
     return 0;
 }
@@ -99,10 +99,10 @@ static uint64_t bldPieceHash(const brd::BoardState& state) noexcept {
     return hash;
 }
 
-uint64_t makeKey(const brd::BoardState& state, const common::Options& opts) noexcept {
+uint64_t makeKey(const brd::BoardState& state) noexcept {
     return bldPieceHash(state)
            ^ bldCastleHash(state)
-           ^ bldTurnHash(state, opts)
+           ^ bldTurnHash(state)
            ^ bldEnpassantHash(state);
 }
 

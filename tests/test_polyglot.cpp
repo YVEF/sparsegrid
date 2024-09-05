@@ -63,8 +63,8 @@ BOOST_AUTO_TEST_CASE(test_key_generation) {
             c_state.registerMove(mv);
 
         fen.apply(fen_inputs[i], state);
-        auto key = adapters::polyglot::makeKey(state, opts);
-        auto c_key = adapters::polyglot::makeKey(c_state, opts);
+        auto key = adapters::polyglot::makeKey(state);
+        auto c_key = adapters::polyglot::makeKey(c_state);
         std::cout << "1:" << std::hex << key << std::endl;
         std::cout << "2:" << std::hex << c_key << std::endl;
         BOOST_REQUIRE_EQUAL(expected_keys[i], key);

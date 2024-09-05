@@ -7,6 +7,7 @@
 #include <boost/python/numpy.hpp>
 #include <immintrin.h>
 #include <type_traits>
+#include "eval/evaluator.h"
 
 namespace np = boost::python::numpy;
 namespace python = boost::python;
@@ -55,11 +56,12 @@ public:
 } // namespace interop
 
 interop::CDC* initCDC() noexcept {
-//    common::Options opts{};
-    return new interop::CDC(brd::BoardState{brd::Board{}}, common::Options{});
+    common::Options opts{};
+    opts.NNStateFile = std::string(NN_GZIP_PRETRAINED_WEIGHTS);
+    return new interop::CDC(brd::BoardState{brd::Board{}}, std::move(opts));
 }
 
-auto convert_(const brd::Move& move) {
+auto convert_(const brd::Move& move) noexcept {
     interop::CDCMove cdcMove{};
     cdcMove.from = move.from;
     cdcMove.to = move.to;
@@ -68,7 +70,7 @@ auto convert_(const brd::Move& move) {
     return cdcMove;
 }
 
-auto convert_(const interop::CDCMove& cdcMove) {
+auto convert_(const interop::CDCMove& cdcMove) noexcept {
     brd::Move move{};
     move.from = cdcMove.from;
     move.to = cdcMove.to;
@@ -77,13 +79,28 @@ auto convert_(const interop::CDCMove& cdcMove) {
     return move;
 }
 
+static void fillNNLayer(const brd::BoardState::nnLayer_t& nnl, const np::ndarray& input) {
+    auto data = reinterpret_cast<double*>(input.get_data());
+    std::memcpy(data, nnl.data(), brd::nnLayerSize() * sizeof(double));
+}
 
-void makeMove(interop::CDC* cdc, const interop::CDCMove& cdcMove) noexcept {
+void makeMove(interop::CDC* cdc, const interop::CDCMove& cdcMove, const np::ndarray& input) {
+    auto move = convert_(cdcMove);
+    cdc->m_state.registerMove(move);
+    fillNNLayer(cdc->m_state.getNNL(), input);
+}
+
+void undoMove(interop::CDC* cdc, const np::ndarray& input) {
+    cdc->m_state.undo();
+    fillNNLayer(cdc->m_state.getNNL(), input);
+}
+
+void makeMoveSilently(interop::CDC* cdc, const interop::CDCMove& cdcMove) {
     auto move = convert_(cdcMove);
     cdc->m_state.registerMove(move);
 }
 
-void undoMove(interop::CDC* cdc) noexcept {
+void undoMoveSilently(interop::CDC* cdc) {
     cdc->m_state.undo();
 }
 
@@ -91,11 +108,11 @@ void freeCDC(interop::CDC* cdc) {
     delete cdc;
 }
 
-void displayBoard(interop::CDC* cdc) {
+    void displayBoard(interop::CDC* cdc) {
     Debugger::printBB(cdc->m_state);
 }
 
-interop::MoveCollection* nextMoves(interop::CDC* cdc, bool color) {
+interop::MoveCollection* nextMoves(interop::CDC* cdc, bool color) noexcept {
     cdc->m_mvCollection.clearBag();
 
     brd::MoveList mvlist{};
@@ -123,38 +140,14 @@ np::ndarray initNNLayer() {
     return result;
 }
 
-void fillNNLayer(interop::CDC* cdc, const np::ndarray& input) {
-    auto&& nnl = cdc->m_state.getNNL();
-    auto data = reinterpret_cast<double*>(input.get_data());
-    std::memcpy(data, nnl.data(), brd::nnLayerSize() * sizeof(double));
-}
-
-template<std::size_t I>
-static void fillBits(double* input, const auto& rawBrd) {
-    auto brdPart = std::get<I>(rawBrd);
-    constexpr auto start = I*64;
-    for (SQ i=0; i<64; i++) {
-        if ((1ull << i) & brdPart) input[start+i] = 1.0;
-    }
-}
-
-void rebuildNN(interop::CDC* cdc, const np::ndarray& input) noexcept {
-    auto data = reinterpret_cast<double*>(input.get_data());
-    std::fill_n(data, brd::nnLayerSize(), 0.0);
-
-    auto rawBrd = cdc->m_state.getBoard().getRawBoard();
-    fillBits<0>(data, rawBrd);
-    fillBits<1>(data, rawBrd);
-    fillBits<2>(data, rawBrd);
-    fillBits<3>(data, rawBrd);
-    if (brd::getNextPlayerColor(cdc->m_state))
-        data[256] = 1.0;
-    else
-        data[319] = 1.0;
-}
-
 bool isDraw(interop::CDC* cdc) noexcept {
     return cdc->m_state.draw();
+}
+
+double getRawEvaluation(interop::CDC* cdc) noexcept {
+//    return 0.0;
+    eval::NNEvaluator evalu(cdc->m_opts);
+    return evalu.evaluateRaw(cdc->m_state);
 }
 
 
@@ -180,12 +173,13 @@ BOOST_PYTHON_MODULE(sg_trainer_interop) {
     python::def(OBJECT_NAME(welcome), interop::welcome);
     python::def(OBJECT_NAME(makeMove), makeMove);
     python::def(OBJECT_NAME(undoMove), undoMove);
+    python::def(OBJECT_NAME(makeMoveSilently), makeMoveSilently);
+    python::def(OBJECT_NAME(undoMoveSilently), undoMoveSilently);
     python::def(OBJECT_NAME(freeCDC), freeCDC);
-    python::def(OBJECT_NAME(fillNNLayer), fillNNLayer);
+//    python::def(OBJECT_NAME(fillNNLayer), fillNNLayer);
     python::def(OBJECT_NAME(initNNLayer), initNNLayer);
     python::def(OBJECT_NAME(recognizeMove), recognizeMove);
     python::def(OBJECT_NAME(displayBoard), displayBoard);
-    python::def(OBJECT_NAME(rebuildNN), rebuildNN);
     python::def(OBJECT_NAME(isDraw), isDraw);
-
+    python::def(OBJECT_NAME(getRawEvaluation), getRawEvaluation);
 }

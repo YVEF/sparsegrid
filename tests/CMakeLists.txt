@@ -1,7 +1,8 @@
 find_package(Boost COMPONENTS unit_test_framework REQUIRED)
 include_directories(
-	${Boost_INCLUDE_DIRS} 
-	${CMAKE_SOURCE_DIR}/src)
+		${Boost_INCLUDE_DIRS}
+		${CMAKE_SOURCE_DIR}/src
+)
 
 
 
@@ -17,10 +18,16 @@ set(TESTS_SRC
 		test_evals.cpp
 )
 
+#set(OB_DIR_ "${OB_DIR_}/sg_ob")
+#set(OB_POLY_BIN "${OB_DIR_}/Human.bin")
+# set(OB_POLY_BIN "${OB_DIR_}/Titans.bin")
+
+
 
 add_executable(${PROJECT_TEST_NAME} main.cpp ${TESTS_SRC})
 target_link_libraries(${PROJECT_TEST_NAME} PRIVATE ${PROJECT_LIB_NAME} Boost::unit_test_framework)
 # target_compile_definitions(${PROJECT_TEST_NAME} PRIVATE "OB_POLY_BIN=\"${OB_POLY_BIN}\"")
+
 
 set(BOOST_TEST_STD_ARGS --log_level=all --report_level=short --show-progress=on)
 add_test(NAME test_board COMMAND ${PROJECT_TEST_NAME} ${BOOST_TEST_STD_ARGS} --run_test=board_test_suite)

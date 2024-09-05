@@ -54,7 +54,7 @@ void Book::read(std::string_view path) {
 
 
 bool Book::probe(const brd::BoardState& state, brd::Move& move) const noexcept {
-    auto key = adapters::polyglot::makeKey(state, m_opts);
+    auto key = adapters::polyglot::makeKey(state);
     // todo: use table
 
     SgPolyEntry result{};

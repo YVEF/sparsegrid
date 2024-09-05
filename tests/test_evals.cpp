@@ -13,6 +13,8 @@ BOOST_AUTO_TEST_SUITE(evals_test_suite)
 
 BOOST_AUTO_TEST_CASE(test_local, *boost::unit_test::disabled()) {
     common::Options opts{};
+    opts.NNStateFile = std::string(NN_GZIP_PRETRAINED_WEIGHTS);
+
     eval::NNEvaluator evalu(opts);
     brd::BoardState state(brd::Board{});
     brd::MoveList mvList{};

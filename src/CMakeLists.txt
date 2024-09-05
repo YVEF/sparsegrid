@@ -47,6 +47,7 @@ set(ENGINE_SRC
 
 set(COMMON_SRC
         common/stat.cpp
+        common/options.cpp
 )
 
 ## === DEFS
@@ -56,8 +57,7 @@ if("${CMAKE_BUILD_TYPE}" STREQUAL  "Debug")
 endif()
 ## ===
 
-set(PROJ_SOURCES ${BOARD_SRC}
-        ${EVAL_SRC}
+set(PROJ_MAIN_SOURCES ${BOARD_SRC}
         ${SEARCH_SRC}
         ${DBG_UTILS_SRC}
         ${CORE_SRC}
@@ -68,8 +68,11 @@ set(PROJ_SOURCES ${BOARD_SRC}
 )
 
 set(INTEROP_PROJ sg_trainer_interop)
-add_library(${PROJECT_LIB_NAME} STATIC  ${PROJ_SOURCES})
-add_library(${INTEROP_PROJ} SHARED  ${PROJ_SOURCES} interop.cpp)
+add_library(${PROJECT_LIB_NAME} STATIC ${PROJ_MAIN_SOURCES} ${EVAL_SRC})
+add_library(${INTEROP_PROJ} SHARED  ${PROJ_MAIN_SOURCES} ${EVAL_SRC} interop.cpp)
+
+set(NN_STATE_GZIP_DIR "${OB_DIR_}/Human.bin")
+
 
 
 
@@ -88,7 +91,9 @@ set(PROJECT_NAME_EXE ${PROJECT_NAME})
 add_executable(${PROJECT_NAME_EXE} main.cpp)
 target_link_libraries(${PROJECT_NAME_EXE} PUBLIC ${PROJECT_LIB_NAME})
 
-
+set(NN_GZIP_PRETRAINED_WEIGHTS "${CMAKE_SOURCE_DIR}/sgtrain/sgw_native.nn")
+target_compile_definitions(${PROJECT_LIB_NAME} PUBLIC "NN_GZIP_PRETRAINED_WEIGHTS=\"${NN_GZIP_PRETRAINED_WEIGHTS}\"")
+target_compile_definitions(${INTEROP_PROJ} PUBLIC "NN_GZIP_PRETRAINED_WEIGHTS=\"${NN_GZIP_PRETRAINED_WEIGHTS}\"")
 
 target_link_libraries(${INTEROP_PROJ} PUBLIC
         Boost::python

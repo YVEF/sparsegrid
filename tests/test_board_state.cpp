@@ -459,32 +459,8 @@ BOOST_FIXTURE_TEST_CASE(test_regression_5, BoardStateFixture) {
     BOOST_CHECK_NE(keyInit, key3);
 }
 
-
-template<std::size_t I>
-static void fillBits(double* input, const auto& rawBrd) {
-    auto brdPart = std::get<I>(rawBrd);
-    constexpr auto start = I*64;
-    for (SQ i=0; i<64; i++) {
-        if ((1ull << i) & brdPart) input[start+i] = 1.0;
-    }
-}
-
-void rebuildNN(const brd::BoardState& state, double* data) noexcept {
-    std::fill_n(data, brd::nnLayerSize(), 0.0);
-
-    auto rawBrd = state.getBoard().getRawBoard();
-    fillBits<0>(data, rawBrd);
-    fillBits<1>(data, rawBrd);
-    fillBits<2>(data, rawBrd);
-    fillBits<3>(data, rawBrd);
-    if (getNextPlayerColor(state))
-        data[256] = 1.0;
-    else
-        data[319] = 1.0;
-}
-
-static int checkDouble(const double* a, const double* b, std::size_t size) {
-    for (std::size_t i=0; i<size; i++) {
+static int checkDouble(const brd::BoardState::nnLayer_t& a, const brd::BoardState::nnLayer_t& b) {
+    for (std::size_t i=0; i<a.size(); i++) {
         if (a[i] > b[i]) return 1;
         if (a[i] < b[i]) return -1;
     }
@@ -500,29 +476,26 @@ BOOST_FIXTURE_TEST_CASE(test_run_game_check_consistent_nn_layer, BoardStateFixtu
         brd::mkMove(SqNum::sqn_f7, SqNum::sqn_f6),
         brd::mkMove(SqNum::sqn_f1, SqNum::sqn_c4),
         brd::mkMove(SqNum::sqn_g8, SqNum::sqn_e7),
-
     };
 
-    double* refData = new double[brd::nnLayerSize()];
-    rebuildNN(state, refData);
-    auto r = checkDouble(refData, state.getNNL().data(), brd::nnLayerSize());
-    BOOST_REQUIRE(!r);
+    brd::BoardState::nnLayer_t refData{};
+    rebuildNNLayer(state, refData);
+    auto r = checkDouble(refData, state.getNNL());
+    BOOST_REQUIRE_EQUAL(r, 0);
 
     for (auto&& mv : game) {
         state.registerMove(mv);
-        rebuildNN(state, refData);
-        r = checkDouble(refData, state.getNNL().data(), brd::nnLayerSize());
+        rebuildNNLayer(state, refData);
+        r = checkDouble(refData, state.getNNL());
         BOOST_CHECK(!r);
     }
 
     for (std::size_t i=0; i<game.size(); i++) {
         state.undo();
-        rebuildNN(state, refData);
-        r = checkDouble(refData, state.getNNL().data(), brd::nnLayerSize());
+        rebuildNNLayer(state, refData);
+        r = checkDouble(refData, state.getNNL());
         BOOST_CHECK(!r);
     }
-
-    delete[] refData;
 }
 
 

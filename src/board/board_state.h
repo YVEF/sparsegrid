@@ -111,7 +111,6 @@ private:
     mutable undoList_t      m_undoList;
     uint8_t                 m_rule50Ply = 0;
     unsigned int            m_wKingMoves = 0, m_bKingMoves = 0;
-//    BB                      m_kingAttackers[2] = {0,0};
     Score                   m_nonPawnMaterial[2] = {INIT_MATERIAL, INIT_MATERIAL};
     unsigned                m_wKingExists = true, m_bKingExists = true;
     SQ                      m_lwRp = SqNum::sqn_a1, m_lbRp = SqNum::sqn_a8; // left black and white rook positions
@@ -202,12 +201,13 @@ template<PColor Color> bool BoardState::kingUnderCheck() const noexcept {
     }
 }
 
-//PColor getNextPlayerColor(const brd::BoardState& state, const common::Options& opts) noexcept;
 PColor getNextPlayerColor(const brd::BoardState& state) noexcept;
 
 constexpr std::size_t nnLayerSize() {
     return std::size(brd::BoardState::nnLayer_t{});
 }
+
+void rebuildNNLayer(const BoardState& state, BoardState::nnLayer_t& input) noexcept;
 
 } // namespace brd
 #endif  // INCLUDE_BOARD_BOARD_STATE_H_
