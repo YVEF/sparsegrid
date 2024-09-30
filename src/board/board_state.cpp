@@ -564,4 +564,12 @@ PColor getNextPlayerColor(const brd::BoardState& state) noexcept {
     return state.history().size() % 2 == 0 ? PColor::W : PColor::B;
 }
 
+bool BoardState::is_promo(const brd::Move& move) const {
+    BB fromMask = AS_BB(move.from);
+    PKind kind = m_board.getKind(fromMask);
+    if (kind != PKind::pP || move.isEnpass) return false;
+    BB toMask = AS_BB(move.to);
+    return toMask & NRank::r1 || toMask & NRank::r8;
+}
+
 } // namespace brd

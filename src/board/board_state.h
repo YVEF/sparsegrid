@@ -80,6 +80,7 @@ public:
     template<PColor Color> bool kingUnderCheck() const noexcept;
 
     const undoList_t& history() const noexcept;
+    bool is_promo(const brd::Move&) const;
 
     // ========= NN ==============
     using nnLayer_t = std::array<double, 320>;

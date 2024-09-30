@@ -3,6 +3,7 @@
 #include <cassert>
 #include "../core/defs.h"
 #include "../core/CallerThreadExecutor.h"
+#include "../core/ThreadPoolExecutor.h"
 #include "../engine.h"
 
 
@@ -19,6 +20,7 @@ bool cmp(std::string_view& input, const char(&lit)[N]) {
     return false;
 }
 
+// todo: handle promotion from uci move notation
 SQ readSq(std::string_view& input) {
     BB mask = 0x00;
     switch (input[0]) {
@@ -48,7 +50,7 @@ SQ readSq(std::string_view& input) {
 }
 
 
-static void handle_go(std::string_view& input, auto& engine, auto& ostream);
+static void handle_go(std::string_view& input, auto& engine, auto& ostream, bool ponder);
 static void handle_position(std::string_view& input, auto& engine, auto& fen);
 static void handle_option(std::string_view& input, auto& engine);
 static void handle_register(std::string_view&);
@@ -72,7 +74,7 @@ void Protocol<TE>::ready() {
 template <typename TE>
 void Protocol<TE>::accept(std::string_view input) {
     if(cmp(input, "position")) [[likely]] handle_position(input, m_engine, m_fen);
-    else if (cmp(input, "go")) [[likely]] handle_go(input, m_engine, m_os);
+    else if (cmp(input, "go")) [[likely]] handle_go(input, m_engine, m_os, m_ponder);
     else if (cmp(input, "ucinewgame")) m_engine.initNewGame(PColor::B);
     else if (cmp(input, "isready")) do_ready(m_os);
     else if (cmp(input, "setoption")) handle_option(input, m_opts);
@@ -97,7 +99,7 @@ static unsigned long long readNextTime(std::string_view& input) {
 }
 
 // template<typename TE>
-void handle_go(std::string_view& input, auto& engine, auto& ostream) {
+void handle_go(std::string_view& input, auto& engine, auto& ostream, bool ponder) {
     bool res = cmp(input, "wtime");
     assert(res);
     uint64_t wtime = readNextTime(input);
@@ -115,12 +117,13 @@ void handle_go(std::string_view& input, auto& engine, auto& ostream) {
     uint64_t binc = readNextTime(input);
 
     engine.go(wtime + winc, btime + binc,
-        [&ostream](auto res) { 
-            ostream << "bestmove " << res.bestmove << " ponder " << res.ponder << std::endl;
+        [&ostream, ponder](auto res) {
+            ostream << "bestmove " << res.bestmove;
+            if (ponder) ostream << " ponder " << res.ponder;
+            ostream << std::endl;
         });
 }
 
-// todo: hide state under engine
 void handle_position(std::string_view& input, auto& engine, auto& fen) {
     if(cmp(input, "fen")) {
         std::size_t cnt = fen.apply(input, engine.state());
@@ -133,20 +136,8 @@ void handle_position(std::string_view& input, auto& engine, auto& fen) {
         return;
     }
 
-    // check the move list
-    // rollback, or apply if needed
-    std::size_t expect_posit = static_cast<std::size_t>(engine.state().ply()) * 5;
-    std::size_t i = std::min(expect_posit, input.size() - 4);
-    while(i < expect_posit) {
-        engine.state().undo();
-        expect_posit -= 5;
-    }
-    while(i < input.size()) {
-        auto from = readSq(input);
-        auto to = readSq(input);
-        engine.move(from, to);
-        i += 5;
-    }
+    // skip all moves because of internal state
+    // be carefull if there are bled fen + moves
 }
 
 void handle_option(std::string_view& input, auto& options) {
@@ -208,14 +199,21 @@ void stop(auto& run) {
 }
 
 
+template<typename TE>
+void Protocol<TE>::welcomeMsg() noexcept {
+    m_os << "SparseGrid v0.1" << std::endl;
+}
+
+
 template <typename TE>
 Protocol<TE>::Protocol(sg::Engine<TE>& engine, std::istream& is, 
         std::ostream& os, common::Options& opts, uci::Fen& fen) noexcept
-: m_is(is), m_os(os), m_fen(fen), m_engine(engine), m_opts(opts) {
+: m_is(is), m_os(os), m_fen(fen), m_engine(engine), m_ponder(true), m_opts(opts) {
 
 }
 
 template class Protocol<exec::CallerThreadExecutor>;
+template class Protocol<exec::ThreadPoolExecutor>;
 
 
 } // namespace uci

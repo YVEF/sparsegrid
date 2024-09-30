@@ -6,13 +6,15 @@
 #include "uci/fen.h"
 #include "dbg/debugger.h"
 #include "board/move.h"
-
+#include "core/ThreadPoolExecutor.h"
 
 
 namespace sg {
 
 template <typename TExecutor>
-Engine<TExecutor>::Engine(common::Options& opts, common::Stat& stat, eval::Evaluator& eval, const uci::Fen& fen, brd::Board&& board) noexcept 
+Engine<TExecutor>::Engine(
+    common::Options& opts, common::Stat& stat, eval::Evaluator& eval,
+    const uci::Fen& fen, brd::Board&& board) noexcept
 : m_opts(opts), m_stat(stat), m_evalu(eval), m_tm({}), m_state(std::move(board)), m_ttable(m_opts, m_stat),
     m_searcher(search::MtdSearch<TExecutor>{m_opts, m_stat, m_tm, m_ttable, m_evalu}), m_fen(fen) {}
 
@@ -30,12 +32,20 @@ void Engine<TExecutor>::setupNewBoard(PColor color) noexcept {
     m_opts.EngineSide = color;
 }
 
-
-std::string sq2text(SQ sq) noexcept {
+std::string sq2text(SQ sq) {
     constexpr char rank[] {'1','2','3','4','5','6','7','8'};
     constexpr char file[] {'a','b','c','d','e','f','g','h'};
-    std::string c{file[sq&8]}; c.push_back(rank[sq/8]);
+    std::string c{file[sq%8]}; c.push_back(rank[sq/8]);
     return c;
+}
+
+std::string toUci(const brd::Move& move, bool isPromo = false) {
+    auto fromStr = sq2text(move.from);
+    if (move.castling)
+        return fromStr + sq2text(CASTL_TO_UCI_CASTL(move.castling, move.from));
+    auto ucimove = fromStr + sq2text(move.to);
+    if (isPromo) ucimove.push_back('g');
+    return ucimove;
 }
 
 template <typename TExecutor>
@@ -44,8 +54,8 @@ GoResult Engine<TExecutor>::go_() noexcept {
     auto report = m_searcher.pvMove(m_state);
     m_state.registerMove(report.pvMove);
     return {
-        sq2text(report.pvMove.from) + sq2text(report.pvMove.to),
-        sq2text(report.ponder.from) + sq2text(report.ponder.to)
+        toUci(report.pvMove, m_state.is_promo(report.pvMove)),
+        toUci(report.ponder),
     };
 }
 
@@ -62,8 +72,10 @@ brd::BoardState& Engine<TExecutor>::state() noexcept {
 template <typename TExecutor>
 void Engine<TExecutor>::printDbg(std::ostream& os) const noexcept {
     Debugger::printBB(m_state);
-    os << "Fen: " << m_fen.str(m_state) << "\nKey: " << std::hex << std::uppercase << std::setfill('0') << std::setw(16) << m_state.getBoard().key()
-        << std::setfill(' ') << std::dec << "\nCheckers: " << std::endl;
+    os << "Fen: " << m_fen.str(m_state) << "\nKey: " << std::hex << std::uppercase << std::setfill('0')
+    << std::setw(16) << m_state.getBoard().key()
+        << std::setfill(' ') << std::dec << "\nCheckers: "
+        << std::endl;
 }
 
 
@@ -77,13 +89,8 @@ void Engine<TExecutor>::move(SQ from, SQ to) noexcept {
 
 
 template class Engine<exec::CallerThreadExecutor>;
+template class Engine<exec::ThreadPoolExecutor>;
 
 
 } // namespace sg
 
-extern "C" {
-void printEngineHello(int i) noexcept {
-    std::cout << "Hello from " << i << std::endl;
-}
-
-}

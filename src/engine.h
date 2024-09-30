@@ -10,6 +10,8 @@
 #include <string>
 #include <thread>
 #include "search/mtdsearch.h"
+#include "core/CallerThreadExecutor.h"
+#include "core/ThreadPoolExecutor.h"
 
 namespace search { template<typename> class MtdSearch; }
 namespace common { struct Stat; }
@@ -67,9 +69,9 @@ void Engine<TExecutor>::go(uint64_t wtime, uint64_t btime, TGoCallback&& callbac
 }
 } // namespace sg
 
-extern "C" {
-void printEngineHello(int i) noexcept;
-}
+
+extern template class sg::Engine<exec::CallerThreadExecutor>;
+extern template class sg::Engine<exec::ThreadPoolExecutor>;
 
 
 

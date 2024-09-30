@@ -5,6 +5,7 @@ import agents
 import time
 import chess
 import chess.svg
+import chess.engine
 import numpy as np
 
 
@@ -40,7 +41,53 @@ def run_game(agent: agents.SelfPlayAgent, opponent: agents.SelfPlayAgent, mct: M
             agent.evaluate()
 
 
-def start(epochs, report_epochs):
+def start_tpo_game_(agent, engine, movetime, print_board):
+    board = chess.Board()
+    i = 0
+    while True:
+        if ((i == 0 and agent.color())
+                or (i == 1 and not agent.color())):
+            agent_move = agent.get_next_move()
+            ucimove_str = agents.move_to_uci_str(agent_move)
+            mv = chess.Move.from_uci(ucimove_str)
+            if mv not in board.legal_moves:
+                print("illegal move. game over")
+                return -1
+            board.push(mv)
+            agent.make_move(agent_move)
+            agent.evaluate()
+        else:
+            play_res = engine.play(board, chess.engine.Limit(time=movetime))
+            board.push(play_res.move)
+            agent.make_move_uci(play_res.move.from_square, play_res.move.to_square)
+
+        if print_board:
+            print(board)
+        if board.is_checkmate():
+            return 1 if i == 0 else -1
+        i = (i + 1) % 2
+
+
+def start_tpo_game(epochs, engine_path, movetime, print_board):
+    print("start engine game")
+    engine = chess.engine.SimpleEngine.popen_uci(engine_path)
+    engine.configure({
+        "Hash":16384,
+        "Threads":1
+    })
+    agent = agents.SelfPlayAgent(True)
+    agent.restore_state()
+    for epoch in range(1, epochs+1):
+        agent.set_side(random.choice([True, False]))
+        result = start_tpo_game_(agent, engine, movetime, print_board)
+        err = agent.step(result)
+        agent.checkpoint()
+        agent.reset()
+        print(f'eposh:{epoch} loss:{err}')
+    engine.close()
+
+
+def start_selfplay(epochs, report_epochs):
     agent = agents.SelfPlayAgent(True)
     agent.restore_state()
     for ep in range(1, epochs+1):

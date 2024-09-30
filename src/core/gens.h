@@ -74,8 +74,7 @@ private:
 
 struct rand {
     template<std::size_t Size, uint64_t Seed=11>
-    constexpr auto gen_sequence_u64()
-    {
+    constexpr auto gen_sequence_u64() {
         sequence_generator<Seed, Size> gen{};
         return gen();
     }
@@ -90,5 +89,4 @@ uint64_t delay();
 
 
 } // namespace gen
-
 #endif  // INCLUDE_CORE_GENS_H_

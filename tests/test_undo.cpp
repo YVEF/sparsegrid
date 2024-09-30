@@ -11,7 +11,6 @@ public:
     UndoTestFixture() noexcept {
         movegen::init();
     }
-
 };
 
 

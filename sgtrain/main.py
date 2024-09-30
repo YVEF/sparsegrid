@@ -14,7 +14,7 @@ import converters
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run SparseGrid trainer")
     parser.add_argument("--training",
-                        choices=['g', 's'],
+                        choices=['g', 's', 'e'],
                         help="Type of training")
 
     parser.add_argument("--epochs",
@@ -35,6 +35,18 @@ if __name__ == "__main__":
                         action="store_true",
                         help="Convert weights into sg format")
 
+    parser.add_argument("--engine_path", nargs='?',
+                        required=False,
+                        help="Engine executable path")
+
+    parser.add_argument("--movetime",
+                        required=False,
+                        help="Time per move")
+
+    parser.add_argument("--print_board",
+                        action="store_true",
+                        help="Print board per move")
+
     args = parser.parse_args()
     if args.convert_weights:
         res = converters.sg_convert_weights()
@@ -47,6 +59,8 @@ if __name__ == "__main__":
             print("Missing pgn directory")
             exit(1)
         gamesdb.start(args.pgn_dir, epochs, plot_epochs)
+    elif args.training == 'e':
+        selfplay.start_tpo_game(epochs, args.engine_path, float(args.movetime), bool(args.print_board))
     else:
-        selfplay.start(epochs, plot_epochs)
+        selfplay.start_selfplay(epochs, plot_epochs)
 

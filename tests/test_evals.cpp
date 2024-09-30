@@ -22,7 +22,7 @@ BOOST_AUTO_TEST_CASE(test_local, *boost::unit_test::disabled()) {
     std::vector<Score> scores{};
     brd::Move bestMove{};
     Score bestScore = -SCORE_SCALE_FACTOR;
-    for (auto i=0; i<mvList.size(); i++) {
+    for (std::size_t i=0; i<mvList.size(); i++) {
         state.registerMove(mvList[i]);
         scores.push_back(evalu.evaluate(state));
         state.undo();

@@ -214,5 +214,7 @@ constexpr inline SQ makeSq(NFile file, NRank rank) noexcept {
 #define FEN_SHORT_BLACK_CASTLE_MASK 0x04
 #define FEN_LONG_BLACK_CASTLE_MASK 0x08
 
+#define CASTL_TO_UCI_CASTL(castl, from) ((castl) == brd::CastlingType::C_SHORT ? (from) + 3 : (from) - 4)
+#define AS_BB(sq) (1ull << (sq))
 
 #endif  // INCLUDE_CORE_DEFS_H_

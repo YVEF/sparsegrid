@@ -94,27 +94,28 @@ class Agent(ABC):
         assert len(self._actions) > 0
         return self._actions[-1].item()
 
-
-class GamesDbAgent(Agent):
-    def __init__(self, color, lr_=1e-3):
-        super().__init__(
-            color,
-            lambda m : torch.optim.SGD(m.parameters(), lr=lr_, weight_decay=2e-2),
-            sgfiles.SGD_OPTIM_STATE_FILE)
-
-    def get_model(self):
-        return self._model
-
     def make_move_uci(self, from_sq, to_sq):
         mv = sgt.recognizeMove(self._cdc, from_sq, to_sq)
         self.make_move(mv)
 
 
-class SelfPlayAgent(Agent):
+class GamesDbAgent(Agent):
     def __init__(self, color, lr_=1e-3):
         super().__init__(
             color,
-            lambda m : torch.optim.Adam(m.parameters(), lr=lr_),
+            lambda m : torch.optim.SGD(m.parameters(), lr=lr_, weight_decay=2e-3),
+            sgfiles.SGD_OPTIM_STATE_FILE)
+
+    def get_model(self):
+        return self._model
+
+
+class SelfPlayAgent(Agent):
+    def __init__(self, color, lr_=1e-4):
+        super().__init__(
+            color,
+            # lambda m : torch.optim.Adam(m.parameters(), lr=lr_),
+            lambda m : torch.optim.SGD(m.parameters(), lr=lr_, weight_decay=3e-2),
             sgfiles.ADAM_OPTIM_STATE_FILE)
 
     def get_next_move(self):
@@ -133,4 +134,16 @@ class SelfPlayAgent(Agent):
 
     def is_draw(self):
         return sgt.isDraw(self._cdc)
+
+
+rank = ['1','2','3','4','5','6','7','8']
+file = ['a','b','c','d','e','f','g','h']
+
+
+def move_to_uci_str(move):
+    return (f''
+            f'{file[int(move.fromSq%8)]}'
+            f'{rank[int(move.fromSq/8)]}'
+            f'{file[int(move.toSq%8)]}'
+            f'{rank[int(move.toSq/8)]}')
 

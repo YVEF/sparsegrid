@@ -1,6 +1,8 @@
 #ifndef INCLUDE_UCI_PROTOCOL_H_
 #define INCLUDE_UCI_PROTOCOL_H_
 #include "fen.h"
+#include "../core/CallerThreadExecutor.h"
+#include "../core/ThreadPoolExecutor.h"
 
 namespace sg { template<typename> class Engine; }
 namespace common { struct Options; }
@@ -30,6 +32,8 @@ private:
     bool                m_ponder;
     common::Options&    m_opts;
 };
+extern template class uci::Protocol<exec::CallerThreadExecutor>;
+extern template class uci::Protocol<exec::ThreadPoolExecutor>;
 
 } // namespace uci
 #endif  // INCLUDE_UCI_PROTOCOL_H_

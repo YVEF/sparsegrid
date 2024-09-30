@@ -5,8 +5,6 @@
 #include "common/options.h"
 #include <tuple>
 #include <boost/python/numpy.hpp>
-#include <immintrin.h>
-#include <type_traits>
 #include "eval/evaluator.h"
 
 namespace np = boost::python::numpy;
@@ -24,7 +22,7 @@ void welcome(interop::CDC*) {
 struct CDCMove {
     uint8_t from;
     uint8_t to;
-    uint8_t castling;
+    uint8_t castling; // preserve castling field for the fast mapping
     bool isEnpass;
     bool isNAM() { return !from && !to && !castling; }
 };
@@ -67,6 +65,8 @@ auto convert_(const brd::Move& move) noexcept {
     cdcMove.to = move.to;
     cdcMove.castling = move.castling;
     cdcMove.isEnpass = move.isEnpass;
+    if (move.castling)
+        cdcMove.to = CASTL_TO_UCI_CASTL(move.castling, move.from);
     return cdcMove;
 }
 
@@ -76,6 +76,8 @@ auto convert_(const interop::CDCMove& cdcMove) noexcept {
     move.to = cdcMove.to;
     move.castling = cdcMove.castling;
     move.isEnpass = cdcMove.isEnpass;
+    if (move.castling) move.to = 0x00;
+
     return move;
 }
 
@@ -135,8 +137,7 @@ interop::CDCMove recognizeMove(const interop::CDC* cdc, uint8_t from, uint8_t to
 np::ndarray initNNLayer() {
     constexpr auto sz= brd::nnLayerSize();
     Py_intptr_t shape[1] = { sz };
-    auto kk = np::dtype::get_builtin<double>();
-    np::ndarray result = np::zeros(1, shape, kk);
+    np::ndarray result = np::zeros(1, shape, np::dtype::get_builtin<double>());
     return result;
 }
 
@@ -145,7 +146,6 @@ bool isDraw(interop::CDC* cdc) noexcept {
 }
 
 double getRawEvaluation(interop::CDC* cdc) noexcept {
-//    return 0.0;
     eval::NNEvaluator evalu(cdc->m_opts);
     return evalu.evaluateRaw(cdc->m_state);
 }

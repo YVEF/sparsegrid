@@ -72,6 +72,7 @@ search::str::Report MtdSearch<TExecutor>::pvMove(brd::BoardState& state) noexcep
     search::str::Report report{};
     report.pvMove = ctx.T1[0][0];
     report.ponder = ctx.T1[0][1];
+    std::cout << "pon:" << report.ponder << std::endl;
     SG_ASSERT(!report.pvMove.NAM());
 
     m_stat.resetSingleSearch();
@@ -79,25 +80,14 @@ search::str::Report MtdSearch<TExecutor>::pvMove(brd::BoardState& state) noexcep
 }
 
 
-
 template <typename TExecutor>
 Score MtdSearch<TExecutor>::MTDF_(brd::BoardState& state, int16_t f, unsigned depth, detail::SearchContext& ctx) noexcept {
-    brd::Move bestMove{};
+//    brd::Move bestMove{};
     int16_t lowerBound = -INF, upperBound = INF, beta = 0;
     while (lowerBound < upperBound && !m_tm.timeout()) {
         beta = (f == lowerBound) ? f+1 : f;
-        if (depth <= 3 || true) {
-            auto [l, p] = AlphaBeta<false>(state, beta-1, beta, depth, true, ctx);
-            f = l, bestMove = p;
-        }
-        else {
-            auto [l, _] = AlphaBeta<true>(state, beta-1, beta, depth, true, ctx);
-            f = l;
-            beta = (f == lowerBound) ? f+1 : f;
-            auto [l2, m] = AlphaBeta<false>(state, beta-1, beta, depth, true, ctx);
-            f = l2;
-        }
-
+        auto [l, p] = AlphaBeta<false>(state, beta-1, beta, depth, true, ctx);
+        f = l;
         if (f < beta) upperBound = f;
         else lowerBound = f;
     }
